@@ -4,6 +4,18 @@ import fs from 'node:fs/promises';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
+test('community three-file installation retains the complete dependency notices', async () => {
+  const [bundle, notices, license] = await Promise.all([
+    fs.readFile('dist/wechat-history-archive/main.js', 'utf8'),
+    fs.readFile('dist/wechat-history-archive/THIRD-PARTY-NOTICES.txt', 'utf8'),
+    fs.readFile('LICENSE', 'utf8'),
+  ]);
+  assert(notices.includes('turndown'));
+  assert(notices.includes('Permission is hereby granted'));
+  assert(bundle.startsWith(license.split('\n').map(line => `// ${line}`).join('\n')));
+  assert(bundle.endsWith('\n' + notices.split('\n').map(line => `// ${line}`).join('\n') + '\n'));
+});
+
 test('standalone bundle registers clickable launchers and reuses the archive panel', async () => {
   const registered = [];
   const icons = new Map(); const domEvents = []; const leaves = []; let createdLeaves = 0; let revealed = 0;
@@ -31,6 +43,7 @@ test('standalone bundle registers clickable launchers and reuses the archive pan
   }, Buffer, URL, URLSearchParams, AbortSignal, TextDecoder, setTimeout, clearTimeout, setInterval, clearInterval, process, console };
   vm.runInNewContext(await fs.readFile('dist/wechat-history-archive/main.js', 'utf8'), context);
   const plugin = new module.exports(); plugin.app = { workspace: {
+    onLayoutReady() {},
     getLeavesOfType: () => leaves,
     getLeaf: () => { createdLeaves++; return { async setViewState(state) { assert.equal(state.type, 'wechat-history-archive-view'); leaves.push(this); } }; },
     revealLeaf: leaf => { assert(leaves.includes(leaf)); revealed++; },
@@ -47,4 +60,16 @@ test('standalone bundle registers clickable launchers and reuses the archive pan
   await launcher.callback();
   assert.equal(createdLeaves, 1); assert.equal(revealed, 2);
   assert(requested.includes('obsidian')); plugin.onunload(); assert.equal(plugin.stopping, true);
+});
+
+test('deferred archive tabs are only refreshed after they have been loaded', async () => {
+  const { pluginHarness } = await import('../test-support/plugin-harness.mjs');
+  const harness = await pluginHarness();
+  let loaded = 0;
+  harness.leaves.push({ view: {}, async loadIfDeferred() { loaded++; } });
+  assert.doesNotThrow(() => harness.plugin.update('目录已就绪'));
+  await harness.plugin.open();
+  assert.equal(loaded, 1);
+  assert.equal(harness.revealed, 1);
+  assert.equal(harness.createdLeaves, 0);
 });

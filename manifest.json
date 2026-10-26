@@ -1,9 +1,9 @@
 {
   "id": "wechat-history-archive",
   "name": "公众号历史归档",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "minAppVersion": "1.8.0",
-  "description": "获取公众号历史或合集目录，勾选文章后将正文和图片保存到笔记库。Windows 桌面版。",
+  "description": "Archive selected WeChat public-account history or album articles as Markdown with local images on Windows.",
   "author": "Local Tools",
   "isDesktopOnly": true
 }

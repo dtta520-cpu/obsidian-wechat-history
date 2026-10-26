@@ -24,7 +24,7 @@ export async function pluginHarness({ settings = {}, initialFiles = new Map() } 
   proto.createSpan = function (options) { return this.createEl('span', options); };
   const registered = []; const icons = new Map(); const domEvents = []; const leaves = []; const notices = [];
   const files = new Map(initialFiles); const writes = []; const requested = [];
-  let savedSettings = structuredClone(settings); let createdLeaves = 0; let revealed = 0;
+  let savedSettings = structuredClone(settings); let createdLeaves = 0; let revealed = 0; let layoutReady;
   class Plugin {
     async loadData() { return structuredClone(savedSettings); }
     async saveData(data) { savedSettings = JSON.parse(JSON.stringify(data)); }
@@ -73,6 +73,7 @@ export async function pluginHarness({ settings = {}, initialFiles = new Map() } 
     async createBinary(path, content) { assert(!files.has(path)); files.set(path, content); writes.push(path); },
   };
   const app = { vault, workspace: {
+    onLayoutReady: callback => { layoutReady = callback; },
     getLeavesOfType: () => leaves,
     getLeaf: () => { createdLeaves++; return { app, async setViewState(state) {
       assert.equal(state.type, 'wechat-history-archive-view');
@@ -86,6 +87,7 @@ export async function pluginHarness({ settings = {}, initialFiles = new Map() } 
   plugin.createHttp = () => { throw new Error('Test did not supply an HTTP response'); };
   plugin.readHistory = async () => { throw new Error('Test did not supply history'); };
   await plugin.onload();
+  await layoutReady?.();
   return { plugin, app, vault, files, writes, registered, domEvents, notices, requested, document, leaves,
     get settings() { return savedSettings; }, get createdLeaves() { return createdLeaves; }, get revealed() { return revealed; },
   };

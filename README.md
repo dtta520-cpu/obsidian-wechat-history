@@ -2,7 +2,9 @@
 
 独立运行在 **Windows 桌面版 Obsidian** 中的微信公众号历史归档插件。把公众号当前可访问、可枚举的历史内容保存为 Markdown 笔记，并将文章图片下载到笔记库。
 
-当前版本：**0.3.0**，原型阶段。最终用户不需要安装 wechatDownload、微信读书、Python、Node.js、Docker 或 MCP 服务。
+当前版本：**0.3.1**。最终用户不需要安装 wechatDownload、微信读书、Python、Node.js、Docker 或 MCP 服务。
+
+Windows desktop plugin for archiving selected, currently accessible WeChat public-account articles or a native album as Markdown with local images. Full-account discovery requires a logged-in Windows WeChat client and reads its web cache outside the vault. Public albums do not normally need that cache. See the account, network and file-access disclosures below; this is not an official WeChat or Obsidian product.
 
 ## 可以做什么
 
@@ -18,7 +20,7 @@
 
 ## 安装
 
-1. 在 [Releases](https://github.com/dtta520-cpu/obsidian-wechat-history/releases) 下载已发布版本的安装包，或使用本地构建的 `wechat-history-archive-v0.3.0.zip`。
+1. 在 [Releases](https://github.com/dtta520-cpu/obsidian-wechat-history/releases) 下载已发布版本的安装包。
 2. 解压，将其中的 `wechat-history-archive` 文件夹复制到笔记库的 `.obsidian/plugins/` 下。
 3. 确认该文件夹内直接包含 `main.js`、`manifest.json` 和 `styles.css`。
 4. 重新打开 Obsidian，在“设置 → 第三方插件”中启用“公众号历史归档”。
@@ -82,9 +84,17 @@
 - 笔记采用适合阅读的 Markdown 版式；不完全复刻微信模板的背景框、字体和定位效果。
 - 当前验证包含实际目录及正文下载、图片引用检查、静态排版对照及模拟 Obsidian API 加载。尚无完整的真实 Obsidian 界面自动化验收，也没有覆盖所有公众号样式。
 
-## 本地数据处理
+## 账号、网络与文件访问
 
-插件只扫描支持的微信**网页缓存**，并匹配本次指定的公众号；不读取聊天数据库。会话参数在内存中用于请求微信接口，不写入插件配置、笔记和归档进度。图片只从允许的微信图片域名下载。插件没有遥测、第三方上传或后台服务。
+- **账号 / Accounts**：获取整个公众号的历史目录需要本人已登录的 Windows 微信；公开合集通常不需要登录。插件不要求单独注册账号，不需要 API 密钥或付费服务。微信可能要求在其客户端完成验证。
+- **联网 / Network**：只有使用者主动点击识别公众号、获取目录或保存所选文章时才会连接网络。文章、账号及目录请求发送至 `mp.weixin.qq.com`；图片请求仅允许 `qpic.cn`、`qlogo.cn`、`res.wx.qq.com` 及其子域名。使用 HTTPS，请求中的微信页面会话仅发送给微信文章域名，用于读取该用户当前可访问的内容。
+- **笔记库外访问 / Files outside the vault**：全量历史目录功能会只读检查 `%APPDATA%\Tencent\xwechat\radium\web`、`%APPDATA%\Tencent\xwechat\radium\cache`，以及 `%APPDATA%\Tencent\WeChat` 下的 `XPlugin\Plugins\Radium`、`XPlugin\Plugins\XWeb` 和 `Cache` 目录中的网页缓存。这样做是为了找到目标公众号已打开网页的会话参数；不会修改这些目录。公开合集入口不扫描缓存。
+- **本地保存 / Local storage**：文章、图片、公共来源链接、索引和进度只写入使用者选择的笔记库内文件夹；插件通过 Obsidian 的配置接口保存设置。粘贴链接在写入配置前先去除会话及追踪参数，旧配置在启动时进行相同清理。
+- **离线 / Offline**：已保存的笔记、本地图片和目录可离线阅读。获取新目录、下载正文或图片需要网络；未下载成功而保留远程地址的图片也需要网络。
+
+### 隐私说明
+
+插件只扫描支持的微信**网页缓存**，并匹配本次指定的公众号；跳过聊天数据库、登录数据、独立 Cookie 数据库及聊天附件目录。会话参数在内存中用于请求微信接口，不写入插件配置、笔记和归档进度。插件没有广告、遥测、分析服务、AI 服务、第三方上传或后台下载任务，也不会自行更新插件或依赖库。
 
 笔记库中保存文章内容、图片、公共来源链接和下载记录。若该笔记库启用了同步，这些文件也会按原有设置同步。
 
@@ -111,4 +121,8 @@ npm test
 - `src/article-format.mjs`、`src/reading-layout.mjs`：正文和图片转换。
 - `test/`：使用虚构会话数据和本地样例的自动测试；不会连接实际微信账号。
 
-第三方库版权及许可证随安装包保存于 `THIRD-PARTY-NOTICES.txt`。更新说明见 [CHANGELOG.md](CHANGELOG.md)。
+本项目采用 [MIT 许可证](LICENSE)。第三方库版权及许可证随安装包保存于 `THIRD-PARTY-NOTICES.txt`；项目许可证和第三方许可全文也包含在 `main.js` 的注释中，因此通过社区目录只安装三个运行文件时仍保留许可声明。更新说明见 [CHANGELOG.md](CHANGELOG.md)。
+
+发布标签必须与 `manifest.json` 的版本完全一致，例如 `0.3.1`，不要增加 `v` 前缀。社区安装需要对应 Release 单独附上 `main.js`、`manifest.json`、`styles.css`；仅上传 ZIP 或源码包不满足安装要求。
+
+问题反馈请使用本仓库的 [Issues](https://github.com/dtta520-cpu/obsidian-wechat-history/issues)。不要在反馈中粘贴微信会话参数、原始缓存、个人文章内容或笔记库配置。

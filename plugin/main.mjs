@@ -12,6 +12,16 @@ const ICON = 'wechat-history-archive';
 const ICON_SVG = '<g fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M82 43V25a11 11 0 0 0-11-11H25a11 11 0 0 0-11 11v37a11 11 0 0 0 11 11h3v13l18-13h10"/><path d="M29 32h33M29 47h20M75 56v30m-10-10 10 10 10-10"/></g>';
 const DEFAULTS = { articleUrl: '', outputFolder: '公众号归档', downloadImages: true };
 
+function settingsForStorage(settings) {
+  let articleUrl = '';
+  try { articleUrl = catalogSource(settings.articleUrl).source; } catch {}
+  const saved = { articleUrl, outputFolder: settings.outputFolder, downloadImages: settings.downloadImages };
+  for (const key of ['lastIndex', 'lastCatalog']) {
+    if (typeof settings[key] === 'string') saved[key] = settings[key];
+  }
+  return saved;
+}
+
 function folderSetting(value) {
   const normalized = normalizePath(value.trim());
   if (!normalized || normalized.startsWith('/') || /[:\\]/.test(normalized) || normalized.split('/').some(part => part === '..' || part.startsWith('.'))) {
@@ -22,7 +32,10 @@ function folderSetting(value) {
 
 export default class WechatArchivePlugin extends Plugin {
   async onload() {
-    this.settings = { ...DEFAULTS, ...(await this.loadData()) };
+    const stored = (await this.loadData()) || {};
+    this.settings = settingsForStorage({ ...DEFAULTS, ...stored });
+    // Remove old pasted session parameters before any network request or UI action.
+    if (stored.articleUrl && stored.articleUrl !== this.settings.articleUrl) await this.saveSettings();
     this.lastIndex = this.settings.lastIndex || '';
     this.running = false; this.stopping = false; this.logs = [];
     this.catalog = null; this.selected = new Set(); this.savedIds = new Set();
@@ -40,24 +53,27 @@ export default class WechatArchivePlugin extends Plugin {
     setIcon(launcher.createSpan({ cls: 'wechat-history-launcher-icon', attr: { 'aria-hidden': 'true' } }), ICON);
     launcher.createSpan({ text: '公众号归档' });
     this.registerDomEvent(launcher, 'click', () => this.open());
-    this.addCommand({ id: 'open', name: '打开公众号历史归档', callback: () => this.open() });
+    this.addCommand({ id: 'open', name: '打开归档面板', callback: () => this.open() });
     this.addSettingTab(new ArchiveSettings(this.app, this));
-    await this.restoreCatalog();
+    this.app.workspace.onLayoutReady(() => {
+      if (!this.stopping && !this.running && !this.catalog) return this.restoreCatalog();
+    });
   }
   onunload() { this.stopping = true; }
   async open() {
     const existing = this.app.workspace.getLeavesOfType(VIEW)[0];
     const leaf = existing || this.app.workspace.getLeaf(true);
     if (!existing) await leaf.setViewState({ type: VIEW, active: true });
+    else await leaf.loadIfDeferred?.();
     this.app.workspace.revealLeaf(leaf);
   }
   update(message, { log = true } = {}) {
     this.status = message;
     if (log) { this.logs.push(`${new Date().toLocaleTimeString()}  ${message}`); this.logs = this.logs.slice(-40); }
-    for (const leaf of this.app.workspace.getLeavesOfType(VIEW)) leaf.view.refresh();
+    this.refreshViews();
   }
   checkStop() { if (this.stopping) throw new ProbeError('CANCELLED', '任务已停止。已保存的文章会保留，可继续保存剩余勾选文章。'); }
-  async saveSettings() { await this.saveData(this.settings); }
+  async saveSettings() { await this.saveData(settingsForStorage(this.settings)); }
   async ensureFolder(folder) {
     let current = '';
     for (const part of folder.split('/')) {
@@ -72,7 +88,9 @@ export default class WechatArchivePlugin extends Plugin {
   }
   createHttp() { return new WechatHttp({ fetchImpl: nativeFetch }); }
   refreshViews() {
-    for (const leaf of this.app.workspace.getLeavesOfType(VIEW)) leaf.view.refresh();
+    for (const leaf of this.app.workspace.getLeavesOfType(VIEW)) {
+      if (leaf.view instanceof ArchiveView) leaf.view.refresh();
+    }
   }
   clearCatalog() {
     this.catalog = null; this.selected.clear(); this.savedIds.clear(); this.refreshViews();
