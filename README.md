@@ -1,8 +1,8 @@
-# 公众号历史归档
+# WeChat History Archive（公众号历史归档）
 
 独立运行在 **Windows 桌面版 Obsidian** 中的微信公众号历史归档插件。把公众号当前可访问、可枚举的历史内容保存为 Markdown 笔记，并将文章图片下载到笔记库。
 
-当前版本：**0.3.1**。最终用户不需要安装 wechatDownload、微信读书、Python、Node.js、Docker 或 MCP 服务。
+当前版本：**0.3.2**。最终用户不需要安装 wechatDownload、微信读书、Python、Node.js、Docker 或 MCP 服务。
 
 Windows desktop plugin for archiving selected, currently accessible WeChat public-account articles or a native album as Markdown with local images. Full-account discovery requires a logged-in Windows WeChat client and reads its web cache outside the vault. Public albums do not normally need that cache. See the account, network and file-access disclosures below; this is not an official WeChat or Obsidian product.
 
@@ -23,7 +23,7 @@ Windows desktop plugin for archiving selected, currently accessible WeChat publi
 1. 在 [Releases](https://github.com/dtta520-cpu/obsidian-wechat-history/releases) 下载已发布版本的安装包。
 2. 解压，将其中的 `wechat-history-archive` 文件夹复制到笔记库的 `.obsidian/plugins/` 下。
 3. 确认该文件夹内直接包含 `main.js`、`manifest.json` 和 `styles.css`。
-4. 重新打开 Obsidian，在“设置 → 第三方插件”中启用“公众号历史归档”。
+4. 重新打开 Obsidian，在“设置 → 第三方插件”中启用“WeChat History Archive”。插件功能界面使用中文。
 
 也可以从 Release 分别下载这三个文件，放入上述插件文件夹。GitHub 自动生成的 “Source code” 压缩包是开发源码，需要先构建。
 
@@ -32,7 +32,7 @@ Windows desktop plugin for archiving selected, currently accessible WeChat publi
 ## 使用
 
 1. 登录 Windows 微信。
-2. 点击 Obsidian 左侧工具栏的绿色归档图标，或右下角带文字的“公众号归档”按钮，打开面板。也可通过命令面板搜索“公众号历史归档”。
+2. 点击 Obsidian 左侧工具栏的绿色归档图标，或右下角带文字的“公众号归档”按钮，打开面板。也可通过命令面板搜索“WeChat History Archive”。
 3. 填入目标公众号任意一篇文章的 `https://mp.weixin.qq.com/s/...` 链接。
 4. 点击“复制微信主页链接”，发到微信文件传输助手，在**电脑微信内部**打开并向下翻动几屏。
 5. 回到 Obsidian，点击“获取文章目录”。这一步保存目录和索引，不会自动保存文章正文。
@@ -123,6 +123,6 @@ npm test
 
 本项目采用 [MIT 许可证](LICENSE)。第三方库版权及许可证随安装包保存于 `THIRD-PARTY-NOTICES.txt`；项目许可证和第三方许可全文也包含在 `main.js` 的注释中，因此通过社区目录只安装三个运行文件时仍保留许可声明。更新说明见 [CHANGELOG.md](CHANGELOG.md)。
 
-发布标签必须与 `manifest.json` 的版本完全一致，例如 `0.3.1`，不要增加 `v` 前缀。社区安装需要对应 Release 单独附上 `main.js`、`manifest.json`、`styles.css`；仅上传 ZIP 或源码包不满足安装要求。
+发布标签必须与 `manifest.json` 的版本完全一致，例如 `0.3.2`，不要增加 `v` 前缀。社区安装需要对应 Release 单独附上 `main.js`、`manifest.json`、`styles.css`；仅上传 ZIP 或源码包不满足安装要求。
 
 问题反馈请使用本仓库的 [Issues](https://github.com/dtta520-cpu/obsidian-wechat-history/issues)。不要在反馈中粘贴微信会话参数、原始缓存、个人文章内容或笔记库配置。

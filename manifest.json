@@ -1,7 +1,7 @@
 {
   "id": "wechat-history-archive",
-  "name": "公众号历史归档",
-  "version": "0.3.1",
+  "name": "WeChat History Archive",
+  "version": "0.3.2",
   "minAppVersion": "1.8.0",
   "description": "Archive selected WeChat public-account history or album articles as Markdown with local images on Windows.",
   "author": "Local Tools",
