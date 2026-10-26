@@ -1,12 +1,18 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { build } from 'esbuild';
+import { staticCssomErrors } from './build-support/static-cssom-errors.mjs';
 const out = 'dist/wechat-history-archive';
 await fs.mkdir(out, { recursive: true });
 const license = await fs.readFile('LICENSE', 'utf8');
 const built = await build({ entryPoints: ['plugin/main.mjs'], bundle: true, platform: 'node', target: 'es2022', format: 'cjs', metafile: true,
   external: ['obsidian', 'electron'], outfile: `${out}/main.js`, sourcemap: false, minify: false,
   banner: { js: license.split('\n').map(line => `// ${line}`).join('\n') },
+  plugins: [{ name: 'static-cssom-error-constructors', setup(builder) {
+    builder.onLoad({ filter: /[\\/]@acemir[\\/]cssom[\\/]lib[\\/]errorUtils\.js$/ }, async args => ({
+      contents: staticCssomErrors(await fs.readFile(args.path, 'utf8')), loader: 'js',
+    }));
+  } }],
   footer: { js: '\nmodule.exports = module.exports.default;' },
 });
 for (const file of ['manifest.json', 'styles.css', 'LICENSE']) await fs.copyFile(file, `${out}/${file}`);
@@ -35,4 +41,5 @@ await fs.writeFile(`${out}/THIRD-PARTY-NOTICES.txt`, noticeText);
 // Keep the full license texts in main.js as well as the standalone notices file.
 await fs.appendFile(`${out}/main.js`, '\n' + noticeText.split('\n').map(line => `// ${line}`).join('\n') + '\n');
 await fs.copyFile('README.md', `${out}/README.md`);
+await fs.copyFile('README.zh-CN.md', `${out}/README.zh-CN.md`);
 console.log(`Built ${out}`);
