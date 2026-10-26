@@ -1,0 +1,10 @@
+.wechat-history-view { padding: 24px; max-width: 880px; margin: 0 auto; }
+.wechat-history-view h2 { margin-top: 0; }
+.wechat-history-view .wechat-intro { color: var(--text-muted); line-height: 1.7; }
+.wechat-history-view input[type=text] { width: 100%; }
+.wechat-history-view .wechat-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.wechat-history-view .wechat-status { padding: 16px; border: 1px solid var(--background-modifier-border); border-radius: 10px; line-height: 1.8; }
+.wechat-history-view .wechat-log { max-height: 260px; overflow: auto; font-size: var(--font-smallest); color: var(--text-muted); margin-top: 16px; }
+.wechat-history-view .wechat-log p { margin: 5px 0; }
+.wechat-history-view progress { width: 100%; margin: 12px 0; }
+.wechat-history-view .wechat-caveat { color: var(--text-muted); font-size: var(--font-small); line-height: 1.6; }

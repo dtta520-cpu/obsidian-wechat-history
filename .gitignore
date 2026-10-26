@@ -1,0 +1,11 @@
+node_modules/
+dist/
+release/
+output/
+.local/
+.env
+.env.*
+!.env.example
+.obsidian/
+data.json
+*.log

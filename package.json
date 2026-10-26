@@ -1,0 +1,28 @@
+{
+  "name": "obsidian-wechat-history",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test",
+    "check": "npm run build && npm test"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "obsidian": "^1.14.4"
+  },
+  "dependencies": {
+    "acorn": "^8.19.0",
+    "linkedom": "^0.18.14",
+    "turndown": "^7.2.4"
+  },
+  "description": "Windows Obsidian plugin for archiving available WeChat public-account history and images.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dtta520-cpu/obsidian-wechat-history.git"
+  }
+}
