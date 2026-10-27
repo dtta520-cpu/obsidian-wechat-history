@@ -1,12 +1,166 @@
-# WeChat Official Account Archive
+# 微信公众号归档 · WeChat Official Account Archive
 
-[中文说明：微信公众号归档](README.zh-CN.md)
+[中文说明](#中文说明) · [English](#english) · [社区插件页面](https://community.obsidian.md/plugins/wechat-history-archive) · [下载安装包](https://github.com/dtta520-cpu/obsidian-wechat-history/releases)
+
+## 中文说明
+
+把微信公众号文章保存到 **Windows 桌面版 Obsidian**：先取得公众号历史目录或某个合集的目录，再勾选需要保存的文章，生成 Markdown 笔记并下载图片。
+
+当前版本：**0.3.4**。插件独立运行，不需要 AI、wechatDownload、微信读书、MCP 服务，也不需要额外安装 Python、Node.js 或 Docker。
+
+### 主要功能
+
+- **公众号历史目录**：从任意一篇文章识别公众号，分页取得当前可访问的历史目录。
+- **单个合集目录**：支持微信原生合集 / 专辑链接，保留合集顺序，并在接口提供总数时核对篇数。
+- **自行选择文章**：取得目录后默认不勾选；支持标题搜索、全选当前结果和勾选未保存文章。
+- **正文与图片归档**：保存图文、图片短文和音频帖的文字介绍；图片可下载到笔记库，保留次序、比例和显示宽度。
+- **保留已有笔记**：同来源笔记不会被覆盖，保留使用者的修改；记录进度、不可访问文章和失败原因。
+- **本地阅读与索引**：每篇笔记保留原文链接，提供归档索引；已保存的正文、本地图片和目录可离线阅读。
+
+> “历史目录已遍历”表示接口返回了明确的末页，不代表能够取得公众号曾经发布的所有文章。已删除、受限、付费或未列入目录的内容可能无法获取。
+
+### 使用条件
+
+| 项目 | 要求 |
+| --- | --- |
+| 系统 | Windows 桌面版；不支持 macOS、Linux 和移动端。 |
+| Obsidian | 1.8.0 及以上；尚未逐一验证所有版本。 |
+| Windows 微信 | 获取整个公众号历史目录时，需要本人已登录的微信，并在微信内打开目标公众号主页。网页缓存已在微信 4.1.6.14 实测。 |
+| 网络 | 获取新目录、正文和图片需要联网。公开合集通常不需要登录微信或读取本机缓存。 |
+
+### 安装
+
+#### 方式一：通过社区目录安装
+
+1. 打开 [Obsidian 社区插件页面](https://community.obsidian.md/plugins/wechat-history-archive)，点击 **Add to Obsidian**。
+2. 在 Obsidian 中允许使用社区插件，安装并启用 **WeChat Official Account Archive**。
+3. 点击左侧工具栏的绿色归档图标，打开“微信公众号归档”面板。
+
+也可以在“设置 → 第三方插件”的社区目录中搜索插件英文名称。每个新版本需要单独完成社区检查，目录中的可安装版本可能晚于 GitHub。
+
+#### 方式二：手动安装或更新
+
+1. 在 [GitHub Releases](https://github.com/dtta520-cpu/obsidian-wechat-history/releases) 下载 `wechat-history-archive-版本号.zip`。
+2. 解压，将其中的 `wechat-history-archive` 文件夹放到笔记库的 `.obsidian/plugins/` 下。
+3. 确认该文件夹内直接包含 `main.js`、`manifest.json` 和 `styles.css`。
+4. 重新打开 Obsidian，在“设置 → 第三方插件”中启用 **WeChat Official Account Archive**。
+
+也可从 Release 单独下载上述三个文件。若笔记库自定义了配置目录，请使用该目录下的 `plugins` 文件夹。GitHub 自动生成的 “Source code” 压缩包是开发源码，不能直接安装。
+
+**升级时保留 `data.json`、笔记和附件。** 0.3.4 将公开名称从 WeChat History Archive 改为 WeChat Official Account Archive，插件 ID、保存目录和设置格式不变，不需要迁移已有归档。
+
+### 使用
+
+#### 保存一个公众号的历史文章
+
+1. 登录 Windows 微信。
+2. 点击 Obsidian 左侧绿色归档图标，或右下角的 **微信公众号归档** 按钮。也可以在命令面板搜索插件英文名称。
+3. 粘贴目标公众号任意一篇文章的链接，例如 `https://mp.weixin.qq.com/s/...`。
+4. 点击 **复制微信主页链接**，把链接发到微信文件传输助手，在 **电脑微信内部** 打开并向下翻动几屏。
+5. 回到 Obsidian，点击 **获取文章目录**。这一步只保存目录和索引，不下载文章正文。
+6. 勾选需要保存的文章，点击 **保存所选文章**。
+
+目录支持标题搜索、**全选当前结果**、**勾选当前未保存** 和 **清空全部勾选**。搜索不会取消之前的勾选，保存按钮显示全部勾选数量。
+
+#### 只保存某个合集的文章
+
+在同一输入框粘贴微信原生合集链接（路径为 `/mp/appmsgalbum`，包含 `__biz` 和 `album_id`），点击 **获取文章目录**，然后勾选保存。
+
+公开合集通常无需先打开微信主页或扫描本机缓存。插件会自动翻页；中途失败、重复页或篇数不符不会被标记为完整目录。微信要求验证或拒绝访问时，插件会提示并停止。
+
+每个合集有独立的索引和进度文件，不覆盖公众号历史索引；相同文章共用笔记和附件。当前不自动解析公众号自定义菜单、第三方专题页或后台分组。
+
+#### 中断、继续与刷新
+
+- 点击 **停止** 后，插件在当前请求结束后停止，保留已经保存的文章；未完成的勾选可以继续保存。
+- 再次打开面板会恢复本地目录；重启插件也会恢复上次保存任务中未完成的选择。
+- 点击 **刷新文章目录** 检查新文章。更换来源链接或保存文件夹后，需要重新获取目录。
+- 已有同来源笔记及使用者修改会保留；未勾选文章不会被下载或删除。
+
+### 文件保存在哪里
+
+默认保存到当前笔记库的 `公众号归档` 文件夹，可在插件设置中修改，也可关闭图片下载。
+
+```text
+公众号归档/
+└─ 公众号名称/
+   ├─ 公众号归档索引.md
+   ├─ 归档记录.json
+   ├─ 日期 文章标题 [文章标识].md
+   └─ 附件/
+```
+
+合集的索引和进度也保存在对应公众号的文件夹内。已下载的图片支持离线阅读；下载失败而保留的远程图片仍需要网络。
+
+### 常见问题与限制
+
+| 提示或现象 | 说明或处理方式 |
+| --- | --- |
+| 未连接到可用的微信页面 | 在电脑微信内重新打开目标公众号主页，翻动几屏后再获取目录。 |
+| 没有找到支持的网页缓存 | 确认使用 Windows 微信桌面版；微信版本变化可能导致缓存布局不兼容。 |
+| 微信要求验证或访问频率受限 | 在微信中完成验证，或暂停一段时间再试；已保存的文章会保留。 |
+| 作者隐私设置限制、文章删除或其他访问限制 | 记录不可访问状态，不把空白页面保存为成功笔记。插件不绕过这些限制。 |
+| 图片下载失败 | 保留允许的远程图片链接，并在记录中写明原因；远程图片不能离线显示。 |
+| 排版与原网页不同 | Markdown 以阅读为主，改善空白、强调、表格及图片布局，但不完全复刻微信模板的背景、字体和定位效果。 |
+| 音频或视频没有下载 | 保留原文入口和可提取的文字介绍，不下载音视频本体，也不生成转写。 |
+
+已验证实际目录及正文下载、图片引用、部分排版样例和模拟 Obsidian API 加载。尚未完成真实 Obsidian 界面的全面自动化验收，也未覆盖所有公众号样式。微信网页接口及缓存格式可能变化。
+
+### 隐私、账号与网络
+
+**账号与费用。** 获取整个公众号的历史目录需要本人已登录的 Windows 微信；公开合集通常不需要。插件不要求单独注册账号、API 密钥、订阅或付费服务。
+
+**网络请求。** 只在使用者主动识别公众号、获取目录或保存所选文章时联网，使用 HTTPS：
+
+- `mp.weixin.qq.com`：文章、账号信息、公众号历史目录及合集目录。
+- `qpic.cn`、`qlogo.cn`、`res.wx.qq.com` 及其子域名：文章图片。
+
+微信页面会话参数只发送至 `mp.weixin.qq.com`，重定向地址会经过校验。
+
+**笔记库外文件。** 公众号历史目录功能会只读检查以下位置的微信网页缓存，匹配使用者已经打开的目标公众号页面。公开合集不扫描这些缓存。
+
+```text
+%APPDATA%\Tencent\xwechat\radium\web
+%APPDATA%\Tencent\xwechat\radium\cache
+%APPDATA%\Tencent\WeChat\XPlugin\Plugins\Radium
+%APPDATA%\Tencent\WeChat\XPlugin\Plugins\XWeb
+%APPDATA%\Tencent\WeChat\Cache
+```
+
+插件不会修改上述目录；跳过聊天数据库、登录数据库、独立 Cookie 数据库和聊天附件目录。会话参数只在内存中使用，不写入设置、笔记或进度文件。粘贴链接在保存设置前会去除会话及追踪参数，旧配置在启动时也会清理。
+
+**本地保存与同步。** 文章、图片、公共来源链接、索引和进度通过 Obsidian 接口写入所选的笔记库文件夹，插件设置通过 Obsidian 配置接口保存。若笔记库启用了同步，这些文件也会按原有设置同步。
+
+**剪贴板与其他服务。** 只有点击复制按钮时，插件才把生成的公开链接写入剪贴板，不读取剪贴板。没有广告、遥测、分析服务、AI 调用、第三方上传或后台下载，也不会自行更新依赖库。
+
+本项目独立开发，不是微信或 Obsidian 官方产品。仓库和发布包不包含使用者的微信缓存、会话参数、归档文章或笔记库配置。
+
+### 开发与许可证
+
+仅开发者需要 Node.js 22 或以上版本：
+
+```sh
+npm ci
+npm run check
+```
+
+构建产物位于 `dist/wechat-history-archive/`；运行所需第三方库已打包到 `main.js`，最终用户不需要开发环境。测试使用虚构会话和本地样例，不连接实际微信账号。构建会将 CSS 解析依赖中的动态错误类型查找替换为静态映射，保留依赖许可，并在上游代码变化时停止构建。
+
+发布标签必须与 `manifest.json` 的版本完全一致，例如 `0.3.4`，不加 `v` 前缀。社区安装要求 Release 单独附上 `main.js`、`manifest.json` 和 `styles.css`。
+
+采用 [MIT 许可证](LICENSE)。项目及第三方许可全文包含在 `main.js` 的注释中；手动安装包还附带 `LICENSE` 和 `THIRD-PARTY-NOTICES.txt`。更新记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+问题反馈请使用 [GitHub Issues](https://github.com/dtta520-cpu/obsidian-wechat-history/issues)。请勿在公开反馈中附上会话参数、原始缓存、私人文章内容或笔记库配置。
+
+---
+
+## English
 
 Archive selected WeChat Official Account (微信公众号) articles as Markdown notes with local images in **Obsidian on Windows**. Fetch an account's currently accessible history or one native WeChat album, then choose which articles to save.
 
 Version: **0.3.4**. The plugin runs inside Obsidian. End users do not need Python, Node.js, Docker, AI, an MCP server, wechatDownload, or WeChat Read.
 
-## Features
+### Features
 
 - Fetch available account history or one native album, with pagination and completeness checks.
 - Choose articles after fetching the directory. Nothing is selected by default.
@@ -16,13 +170,19 @@ Version: **0.3.4**. The plugin runs inside Obsidian. End users do not need Pytho
 - Preserve existing notes and user edits, record unavailable articles, and resume unfinished selections.
 - Keep local indexes and original public URLs. Albums have separate indexes and share notes for the same article.
 
-## Requirements
+### Requirements
 
 - Windows desktop Obsidian. The manifest specifies version 1.8.0 or later; not every version has been tested. Mobile, macOS, and Linux are not supported.
 - A logged-in Windows WeChat client for full-account history. The web-cache layout has been tested with WeChat **4.1.6.14**.
 - Internet access for new directories, articles, and images. Saved notes, local images, and local directories can be read offline.
 
-## Installation
+### Installation
+
+#### Community directory
+
+Open the [community plugin page](https://community.obsidian.md/plugins/wechat-history-archive), click **Add to Obsidian**, then install and enable **WeChat Official Account Archive**. You can also search for that name under **Settings → Community plugins**. Each release is checked separately; the installable directory version may lag behind GitHub.
+
+#### Manual installation or upgrade
 
 1. Download the installation ZIP from [GitHub Releases](https://github.com/dtta520-cpu/obsidian-wechat-history/releases).
 2. Extract it and copy the `wechat-history-archive` folder into your vault's plugin directory. The default location is `.obsidian/plugins/`.
@@ -31,13 +191,13 @@ Version: **0.3.4**. The plugin runs inside Obsidian. End users do not need Pytho
 
 You can also download those three files separately from the release. GitHub's source-code archives need to be built before installation. Preserve `data.json`, notes, and attachments when upgrading. If your vault uses a custom configuration directory, use its `plugins` subdirectory.
 
-The plugin is listed in the [Obsidian Community directory](https://community.obsidian.md/plugins/wechat-history-archive). Each new release is checked separately before it becomes available there. Version 0.3.4 updates the display name from WeChat History Archive; the plugin ID and storage paths remain unchanged.
+Version 0.3.4 updates the display name from WeChat History Archive; the plugin ID, settings format, and storage paths remain unchanged.
 
-## Usage
+### Usage
 
 The plugin interface is currently in Chinese. The steps below identify each button.
 
-### Archive account history
+#### Archive account history
 
 1. Sign in to your own Windows WeChat account.
 2. Click the green archive icon in Obsidian's left ribbon or the **微信公众号归档** status-bar button. You can also search for **WeChat Official Account Archive** in the command palette.
@@ -50,23 +210,23 @@ Use title search, **全选当前结果** (select visible results), **勾选当�
 
 Click **停止** (stop) to retain completed work and stop after the current request. Unfinished selections can be resumed. Reopening the panel restores the local directory without a network request. Use **刷新文章目录** (refresh directory) to check for new articles.
 
-### Archive one album
+#### Archive one album
 
 Paste a native WeChat album URL containing `/mp/appmsgalbum`, `__biz`, and `album_id`, fetch its directory, and select articles to save. Public albums normally work without a WeChat login or cache scan. If WeChat requests verification or denies access, the plugin stops and reports the condition.
 
 Pagination preserves album order and checks the reported count when available. Incomplete, repeated, or inconsistent pages are not marked complete. Each album has its own index and progress record. Custom menus, third-party topic pages, and unpublished backend groups are not supported.
 
-### Storage and settings
+#### Storage and settings
 
 The default vault-relative folder is `公众号归档`. Each account has a subfolder containing its index, progress JSON, notes, and an `附件` image folder. Settings let you change the output folder or disable image downloads. Changing the source or folder requires fetching a new directory.
 
-## Privacy, network, and filesystem disclosures
+### Privacy, network, and filesystem disclosures
 
-### Accounts and payments
+#### Accounts and payments
 
 Full-account history requires the user's own logged-in Windows WeChat client. Public albums usually do not. There is no separate plugin account, API key, subscription, or payment. Verification requested by WeChat must be completed in WeChat.
 
-### Network requests
+#### Network requests
 
 Requests occur only after the user asks to identify an account, fetch a directory, or save selected articles. The plugin uses HTTPS to contact:
 
@@ -75,7 +235,7 @@ Requests occur only after the user asks to identify an account, fetch a director
 
 WeChat session parameters are sent only to `mp.weixin.qq.com`. Redirect destinations are validated. Node HTTPS is used on desktop to enforce redirect boundaries, timeouts, and response-size limits without weakening TLS.
 
-### Files outside the vault
+#### Files outside the vault
 
 Full-account discovery uses Node filesystem APIs to **read** existing WeChat web caches outside the vault. Supported cache directories are under:
 
@@ -91,13 +251,13 @@ This reuses the session of an account page the user has already opened. The plug
 
 Session values remain in memory and are not written to settings, notes, or progress records. Pasted URLs are stripped of session and tracking parameters before saving; old settings are cleaned on load. Articles, images, public links, and progress are written inside the selected vault folder through Obsidian APIs. Vault sync services synchronize those files according to the user's existing configuration.
 
-### Clipboard and other services
+#### Clipboard and other services
 
 Copy-homepage and copy-album buttons **write** the generated public URL to the clipboard only when clicked. The plugin does not read the clipboard. There are no ads, analytics, telemetry, AI calls, third-party uploads, background downloads, or self-updating dependencies.
 
 The bundled CSS parser resolves error constructors through a static lookup. The build replaces its upstream dynamic-evaluation fallback and fails if that dependency code changes unexpectedly. Dependency copyright and license notices remain included.
 
-## Limitations and troubleshooting
+### Limitations and troubleshooting
 
 - “Directory exhausted” means an explicit final page was returned, not that every article ever published is available. Deleted, restricted, paid, or unlisted content may be unavailable.
 - If no usable session is found, reopen the account homepage inside desktop WeChat and try again. Cache layouts and endpoints may change.
@@ -109,7 +269,7 @@ The bundled CSS parser resolves error constructors through a static lookup. The 
 
 Validation includes actual directory and article downloads, image-reference checks, formatting comparisons, and automated tests with a simulated Obsidian API. Full automation against the real Obsidian interface and all account styles has not been completed. This is an independent project, not an official WeChat or Obsidian product.
 
-## Development
+### Development
 
 Use Node.js 22 or later:
 
@@ -122,7 +282,7 @@ Build output: `dist/wechat-history-archive/`. Runtime libraries are bundled into
 
 Release tags must exactly match `manifest.json`, such as `0.3.4`, without a `v` prefix. Attach `main.js`, `manifest.json`, and `styles.css` individually for community installation. The ZIP is also supplied for manual installation.
 
-## License and support
+### License and support
 
 This project uses the [MIT License](LICENSE). Project and third-party licenses are included as comments in `main.js`; manual packages also contain `LICENSE` and `THIRD-PARTY-NOTICES.txt`. See the [changelog](CHANGELOG.md).
 
