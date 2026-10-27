@@ -1,10 +1,10 @@
-# WeChat History Archive
+# WeChat Official Account Archive
 
-[中文说明](README.zh-CN.md)
+[中文说明：微信公众号归档](README.zh-CN.md)
 
-Archive selected WeChat public-account articles as Markdown notes with local images in **Obsidian on Windows**. Fetch an account's currently accessible history or one native WeChat album, then choose which articles to save.
+Archive selected WeChat Official Account (微信公众号) articles as Markdown notes with local images in **Obsidian on Windows**. Fetch an account's currently accessible history or one native WeChat album, then choose which articles to save.
 
-Version: **0.3.3**. The plugin runs inside Obsidian. End users do not need Python, Node.js, Docker, AI, an MCP server, wechatDownload, or WeChat Read.
+Version: **0.3.4**. The plugin runs inside Obsidian. End users do not need Python, Node.js, Docker, AI, an MCP server, wechatDownload, or WeChat Read.
 
 ## Features
 
@@ -27,11 +27,11 @@ Version: **0.3.3**. The plugin runs inside Obsidian. End users do not need Pytho
 1. Download the installation ZIP from [GitHub Releases](https://github.com/dtta520-cpu/obsidian-wechat-history/releases).
 2. Extract it and copy the `wechat-history-archive` folder into your vault's plugin directory. The default location is `.obsidian/plugins/`.
 3. Confirm that the folder directly contains `main.js`, `manifest.json`, and `styles.css`.
-4. Restart Obsidian, open **Settings → Community plugins**, and enable **WeChat History Archive**.
+4. Restart Obsidian, open **Settings → Community plugins**, and enable **WeChat Official Account Archive**.
 
 You can also download those three files separately from the release. GitHub's source-code archives need to be built before installation. Preserve `data.json`, notes, and attachments when upgrading. If your vault uses a custom configuration directory, use its `plugins` subdirectory.
 
-The official directory submission is being reviewed. Publishing a GitHub release does not mean the plugin is already approved or installable from the community directory.
+The plugin is listed in the [Obsidian Community directory](https://community.obsidian.md/plugins/wechat-history-archive). Each new release is checked separately before it becomes available there. Version 0.3.4 updates the display name from WeChat History Archive; the plugin ID and storage paths remain unchanged.
 
 ## Usage
 
@@ -40,7 +40,7 @@ The plugin interface is currently in Chinese. The steps below identify each butt
 ### Archive account history
 
 1. Sign in to your own Windows WeChat account.
-2. Click the green archive icon in Obsidian's left ribbon or the **公众号归档** status-bar button. You can also search for **WeChat History Archive** in the command palette.
+2. Click the green archive icon in Obsidian's left ribbon or the **微信公众号归档** status-bar button. You can also search for **WeChat Official Account Archive** in the command palette.
 3. Paste a public article URL from the target account, such as an `https://mp.weixin.qq.com/s/...` URL.
 4. Click **复制微信主页链接** (copy account homepage). Send that link to WeChat's File Transfer Assistant, open it **inside desktop WeChat**, and scroll down a few screens.
 5. Back in Obsidian, click **获取文章目录** (fetch directory). This saves the directory and index without downloading article bodies.
@@ -120,7 +120,7 @@ npm run check
 
 Build output: `dist/wechat-history-archive/`. Runtime libraries are bundled into `main.js`; users need no development runtime. Tests use synthetic sessions and local fixtures, not real WeChat accounts.
 
-Release tags must exactly match `manifest.json`, such as `0.3.3`, without a `v` prefix. Attach `main.js`, `manifest.json`, and `styles.css` individually for community installation. The ZIP is also supplied for manual installation.
+Release tags must exactly match `manifest.json`, such as `0.3.4`, without a `v` prefix. Attach `main.js`, `manifest.json`, and `styles.css` individually for community installation. The ZIP is also supplied for manual installation.
 
 ## License and support
 

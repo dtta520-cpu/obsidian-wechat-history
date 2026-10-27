@@ -42,16 +42,16 @@ export default class WechatArchivePlugin extends Plugin {
     this.status = '准备就绪。请先登录电脑微信。'; this.completed = 0; this.total = 0;
     addIcon(ICON, ICON_SVG);
     this.registerView(VIEW, leaf => new ArchiveView(leaf, this));
-    const ribbon = this.addRibbonIcon(ICON, '打开公众号归档', () => this.open());
+    const ribbon = this.addRibbonIcon(ICON, '打开微信公众号归档', () => this.open());
     ribbon.addClass('wechat-history-ribbon');
     const statusBar = this.addStatusBarItem();
     statusBar.addClass('wechat-history-status-entry');
     const launcher = statusBar.createEl('button', {
       cls: 'wechat-history-launcher',
-      attr: { type: 'button', title: '打开公众号归档面板', 'aria-label': '打开公众号归档面板' },
+      attr: { type: 'button', title: '打开微信公众号归档面板', 'aria-label': '打开微信公众号归档面板' },
     });
     setIcon(launcher.createSpan({ cls: 'wechat-history-launcher-icon', attr: { 'aria-hidden': 'true' } }), ICON);
-    launcher.createSpan({ text: '公众号归档' });
+    launcher.createSpan({ text: '微信公众号归档' });
     this.registerDomEvent(launcher, 'click', () => this.open());
     this.addCommand({ id: 'open', name: '打开归档面板', callback: () => this.open() });
     this.addSettingTab(new ArchiveSettings(this.app, this));
@@ -362,11 +362,11 @@ export default class WechatArchivePlugin extends Plugin {
 class ArchiveView extends ItemView {
   constructor(leaf, plugin) { super(leaf); this.plugin = plugin; }
   getViewType() { return VIEW; }
-  getDisplayText() { return '公众号历史归档'; }
+  getDisplayText() { return '微信公众号归档'; }
   getIcon() { return ICON; }
   async onOpen() {
     const content = this.contentEl; content.empty(); content.addClass('wechat-history-view');
-    content.createEl('h2', { text: '公众号历史归档' });
+    content.createEl('h2', { text: '微信公众号归档' });
     content.createEl('p', { text: '文章链接用于获取公众号历史目录；合集链接只获取该分组目录。取得目录后，再勾选需要保存的文章。', cls: 'wechat-intro' });
     new Setting(content).setName('公众号文章或合集链接').addText(text => {
       this.urlInput = text;

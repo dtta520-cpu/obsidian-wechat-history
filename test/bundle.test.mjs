@@ -55,8 +55,8 @@ test('standalone bundle registers clickable launchers and reuses the archive pan
   await registered.find(([type]) => type === 'ribbon')[2]();
   const launcher = domEvents.find(item => item.type === 'click');
   assert.equal(launcher.element.tag, 'button');
-  assert.equal(launcher.element.options.attr['aria-label'], '打开公众号归档面板');
-  assert(launcher.element.children.some(child => child.options.text === '公众号归档'));
+  assert.equal(launcher.element.options.attr['aria-label'], '打开微信公众号归档面板');
+  assert(launcher.element.children.some(child => child.options.text === '微信公众号归档'));
   await launcher.callback();
   assert.equal(createdLeaves, 1); assert.equal(revealed, 2);
   assert(requested.includes('obsidian')); plugin.onunload(); assert.equal(plugin.stopping, true);
