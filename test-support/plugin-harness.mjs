@@ -65,7 +65,9 @@ export async function pluginHarness({ settings = {}, initialFiles = new Map() } 
   }, Buffer, URL, URLSearchParams, AbortSignal, TextDecoder, setTimeout, clearTimeout, setInterval, clearInterval, process, console };
   vm.runInNewContext(await fs.readFile(new URL('../dist/wechat-history-archive/main.js', import.meta.url), 'utf8'), context);
   const vault = {
-    getAbstractFileByPath: path => files.has(path) ? { path } : null,
+    getAbstractFileByPath: path => files.has(path) ? { path, ...(files.get(path) === null ? {
+      children: [...files.keys()].filter(child => child.startsWith(path + '/') && !child.slice(path.length + 1).includes('/')).map(child => ({ path: child })),
+    } : {}) } : null,
     async read(file) { assert(files.has(file.path)); return files.get(file.path); },
     async createFolder(path) { assert(!files.has(path)); files.set(path, null); writes.push(path); },
     async create(path, content) { assert(!files.has(path), `Overwriting ${path}`); files.set(path, content); writes.push(path); },

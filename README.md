@@ -4,12 +4,13 @@
 
 ## 中文说明
 
-把微信公众号文章保存到 **Windows 桌面版 Obsidian**：先取得公众号历史目录或某个合集的目录，再勾选需要保存的文章，生成 Markdown 笔记并下载图片。
+把微信公众号文章保存到 **Windows 桌面版 Obsidian**：可以粘贴链接直接保存单篇，也可以先取得公众号历史目录或合集目录，再勾选保存。文章生成 Markdown 笔记，图片可下载到本地。
 
-当前版本：**0.3.4**。插件独立运行，不需要 AI、wechatDownload、微信读书、MCP 服务，也不需要额外安装 Python、Node.js 或 Docker。
+当前版本：**0.4.0**。插件独立运行，不需要 AI、wechatDownload、微信读书、MCP 服务，也不需要额外安装 Python、Node.js 或 Docker。
 
 ### 主要功能
 
+- **单篇直接保存**：粘贴文章链接即可保存，无需先获取目录，不扫描本机微信缓存。
 - **公众号历史目录**：从任意一篇文章识别公众号，分页取得当前可访问的历史目录。
 - **单个合集目录**：支持微信原生合集 / 专辑链接，保留合集顺序，并在接口提供总数时核对篇数。
 - **自行选择文章**：取得目录后默认不勾选；支持标题搜索、全选当前结果和勾选未保存文章。
@@ -26,7 +27,7 @@
 | 系统 | Windows 桌面版；不支持 macOS、Linux 和移动端。 |
 | Obsidian | 1.8.0 及以上；尚未逐一验证所有版本。 |
 | Windows 微信 | 获取整个公众号历史目录时，需要本人已登录的微信，并在微信内打开目标公众号主页。网页缓存已在微信 4.1.6.14 实测。 |
-| 网络 | 获取新目录、正文和图片需要联网。公开合集通常不需要登录微信或读取本机缓存。 |
+| 网络 | 获取新目录、正文和图片需要联网。公开单篇及合集通常不需要登录微信或读取本机缓存。 |
 
 ### 安装
 
@@ -50,6 +51,16 @@
 **升级时保留 `data.json`、笔记和附件。** 0.3.4 将公开名称从 WeChat History Archive 改为 WeChat Official Account Archive，插件 ID、保存目录和设置格式不变，不需要迁移已有归档。
 
 ### 使用
+
+#### 只保存一篇文章
+
+1. 打开“微信公众号归档”面板，粘贴这篇文章的链接。
+2. 点击 **保存单篇文章**，等待正文和图片保存。
+3. 点击 **打开刚保存文章** 查看笔记。
+
+单篇保存不获取公众号或合集目录，也不扫描微信缓存。公开文章通常无需登录；遇到微信验证、作者限制或删除页面时会停止并提示。图片是否下载遵循插件的“下载图片”设置。
+
+每个公众号的单篇记录保存在同一文件夹下的 `单篇归档记录.json` 和 `单篇归档索引.md` 中，与历史及合集索引独立。页面提供统一文章标识时，短链接与长链接会识别为同一篇；已有同来源笔记会保留，后续批量归档也会复用。
 
 #### 保存一个公众号的历史文章
 
@@ -108,16 +119,16 @@
 
 ### 隐私、账号与网络
 
-**账号与费用。** 获取整个公众号的历史目录需要本人已登录的 Windows 微信；公开合集通常不需要。插件不要求单独注册账号、API 密钥、订阅或付费服务。
+**账号与费用。** 获取整个公众号的历史目录需要本人已登录的 Windows 微信；公开单篇及合集通常不需要。插件不要求单独注册账号、API 密钥、订阅或付费服务。
 
-**网络请求。** 只在使用者主动识别公众号、获取目录或保存所选文章时联网，使用 HTTPS：
+**网络请求。** 只在使用者主动识别公众号、获取目录或保存文章时联网，使用 HTTPS：
 
 - `mp.weixin.qq.com`：文章、账号信息、公众号历史目录及合集目录。
 - `qpic.cn`、`qlogo.cn`、`res.wx.qq.com` 及其子域名：文章图片。
 
 微信页面会话参数只发送至 `mp.weixin.qq.com`，重定向地址会经过校验。
 
-**笔记库外文件。** 公众号历史目录功能会只读检查以下位置的微信网页缓存，匹配使用者已经打开的目标公众号页面。公开合集不扫描这些缓存。
+**笔记库外文件。** 公众号历史目录功能会只读检查以下位置的微信网页缓存，匹配使用者已经打开的目标公众号页面。单篇文章和公开合集不扫描这些缓存。
 
 ```text
 %APPDATA%\Tencent\xwechat\radium\web
@@ -146,7 +157,7 @@ npm run check
 
 构建产物位于 `dist/wechat-history-archive/`；运行所需第三方库已打包到 `main.js`，最终用户不需要开发环境。测试使用虚构会话和本地样例，不连接实际微信账号。构建会将 CSS 解析依赖中的动态错误类型查找替换为静态映射，保留依赖许可，并在上游代码变化时停止构建。
 
-发布标签必须与 `manifest.json` 的版本完全一致，例如 `0.3.4`，不加 `v` 前缀。社区安装要求 Release 单独附上 `main.js`、`manifest.json` 和 `styles.css`。
+发布标签必须与 `manifest.json` 的版本完全一致，例如 `0.4.0`，不加 `v` 前缀。社区安装要求 Release 单独附上 `main.js`、`manifest.json` 和 `styles.css`。
 
 采用 [MIT 许可证](LICENSE)。项目及第三方许可全文包含在 `main.js` 的注释中；手动安装包还附带 `LICENSE` 和 `THIRD-PARTY-NOTICES.txt`。更新记录见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -156,12 +167,13 @@ npm run check
 
 ## English
 
-Archive selected WeChat Official Account (微信公众号) articles as Markdown notes with local images in **Obsidian on Windows**. Fetch an account's currently accessible history or one native WeChat album, then choose which articles to save.
+Save individual or selected WeChat Official Account (微信公众号) articles as Markdown notes with local images in **Obsidian on Windows**. Save one article directly, or fetch an account's currently accessible history or a native WeChat album and choose which articles to save.
 
-Version: **0.3.4**. The plugin runs inside Obsidian. End users do not need Python, Node.js, Docker, AI, an MCP server, wechatDownload, or WeChat Read.
+Version: **0.4.0**. The plugin runs inside Obsidian. End users do not need Python, Node.js, Docker, AI, an MCP server, wechatDownload, or WeChat Read.
 
 ### Features
 
+- Save one article directly without fetching a directory or scanning WeChat caches.
 - Fetch available account history or one native album, with pagination and completeness checks.
 - Choose articles after fetching the directory. Nothing is selected by default.
 - Search by title, select visible results, or select unsaved articles.
@@ -197,6 +209,14 @@ Version 0.3.4 updates the display name from WeChat History Archive; the plugin I
 
 The plugin interface is currently in Chinese. The steps below identify each button.
 
+#### Save one article
+
+Paste the article URL and click **保存单篇文章** (save this article). After saving, click **打开刚保存文章** (open saved article). The image-download setting also applies to single articles.
+
+This path does not enumerate history or scan WeChat caches. Public articles usually need no login. Verification, deleted pages, and author restrictions are reported without bypassing access controls.
+
+Single saves have their own `单篇归档记录.json` and `单篇归档索引.md` inside the account folder; they do not replace history or album indexes. When the page exposes a stable article ID, short and long links reuse the same note, including during later batch saves. Existing notes and user edits are preserved.
+
 #### Archive account history
 
 1. Sign in to your own Windows WeChat account.
@@ -224,11 +244,11 @@ The default vault-relative folder is `公众号归档`. Each account has a subfo
 
 #### Accounts and payments
 
-Full-account history requires the user's own logged-in Windows WeChat client. Public albums usually do not. There is no separate plugin account, API key, subscription, or payment. Verification requested by WeChat must be completed in WeChat.
+Full-account history requires the user's own logged-in Windows WeChat client. Public individual articles and albums usually do not. There is no separate plugin account, API key, subscription, or payment. Verification requested by WeChat must be completed in WeChat.
 
 #### Network requests
 
-Requests occur only after the user asks to identify an account, fetch a directory, or save selected articles. The plugin uses HTTPS to contact:
+Requests occur only after the user asks to identify an account, fetch a directory, or save individual or selected articles. The plugin uses HTTPS to contact:
 
 - `mp.weixin.qq.com` for article pages, account information, history, and album directories.
 - `qpic.cn`, `qlogo.cn`, `res.wx.qq.com`, and their subdomains for article images.
@@ -247,7 +267,7 @@ Full-account discovery uses Node filesystem APIs to **read** existing WeChat web
 %APPDATA%\Tencent\WeChat\Cache
 ```
 
-This reuses the session of an account page the user has already opened. The plugin does not modify these directories. It skips chat databases, login databases, standalone cookie databases, and chat attachment folders. Public-album discovery does not scan these caches.
+This reuses the session of an account page the user has already opened. The plugin does not modify these directories. It skips chat databases, login databases, standalone cookie databases, and chat attachment folders. Single-article saving and public-album discovery do not scan these caches.
 
 Session values remain in memory and are not written to settings, notes, or progress records. Pasted URLs are stripped of session and tracking parameters before saving; old settings are cleaned on load. Articles, images, public links, and progress are written inside the selected vault folder through Obsidian APIs. Vault sync services synchronize those files according to the user's existing configuration.
 
@@ -280,7 +300,7 @@ npm run check
 
 Build output: `dist/wechat-history-archive/`. Runtime libraries are bundled into `main.js`; users need no development runtime. Tests use synthetic sessions and local fixtures, not real WeChat accounts.
 
-Release tags must exactly match `manifest.json`, such as `0.3.4`, without a `v` prefix. Attach `main.js`, `manifest.json`, and `styles.css` individually for community installation. The ZIP is also supplied for manual installation.
+Release tags must exactly match `manifest.json`, such as `0.4.0`, without a `v` prefix. Attach `main.js`, `manifest.json`, and `styles.css` individually for community installation. The ZIP is also supplied for manual installation.
 
 ### License and support
 

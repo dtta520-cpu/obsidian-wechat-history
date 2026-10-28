@@ -10,13 +10,14 @@ export function archiveIndex(job) {
   const dates = articles.map(item => item.publishedAt).filter(Boolean).sort();
   const escape = value => value.replace(/[\[\]\\\r\n]/g, ' ');
   const album = job.scope?.type === 'album' ? job.scope : null;
+  const single = job.scope?.type === 'single';
   return [
-    `# ${job.account.nickname} · ${album ? escape(album.title) : '公众号归档'}`, '',
+    `# ${job.account.nickname} · ${album ? escape(album.title) : single ? '单篇归档' : '公众号归档'}`, '',
     ...(album ? [`[打开原合集](${album.url})`, '', '以下仅包含本合集的文章，保留合集中的排列顺序。', ''] : []),
-    `${album ? '合集' : '历史'}目录共 **${articles.length} 条**，已保存文字 **${saved} 条**，未保存 **${pending} 条**，作者隐私限制 **${privateCount} 条**，其他待补齐 **${failed} 条**。`, '',
-    '正文按使用者勾选保存；未保存的目录条目仅保留原文入口，不代表下载失败。', '',
+    `${single ? '单篇保存记录' : album ? '合集目录' : '历史目录'}共 **${articles.length} 条**，已保存文字 **${saved} 条**，未保存 **${pending} 条**，作者隐私限制 **${privateCount} 条**，其他待补齐 **${failed} 条**。`, '',
+    single ? '这里只记录使用者逐篇提交的文章，不代表公众号完整历史目录。' : '正文按使用者勾选保存；未保存的目录条目仅保留原文入口，不代表下载失败。', '',
     `发布时间范围（北京时间）：${localDate(dates[0])} 至 ${localDate(dates.at(-1))}。`, '',
-    `范围为微信${album ? '合集' : '历史'}接口当前可枚举的内容，不保证包含已删除、无权访问或未列入目录的文章。音视频保留原文入口；音频帖保存页面文字介绍，不含音频本体或转写。`, '',
+    single ? '文章删除、作者限制或验证要求可能导致保存失败；可重新粘贴链接重试。音视频保留原文入口，不下载本体或转写。' : `范围为微信${album ? '合集' : '历史'}接口当前可枚举的内容，不保证包含已删除、无权访问或未列入目录的文章。音视频保留原文入口；音频帖保存页面文字介绍，不含音频本体或转写。`, '',
     ...articles.map(article => {
       const item = results.get(article.id);
       const available = item && ['saved', 'existing'].includes(item.status);
