@@ -4,9 +4,9 @@
 
 ## 中文说明
 
-把微信公众号文章保存到 **Windows 桌面版 Obsidian**：可以粘贴链接直接保存单篇，也可以先取得公众号历史目录或合集目录，再勾选保存。文章生成 Markdown 笔记，图片可下载到本地。
+把微信公众号文章保存到 **Windows / macOS 桌面版 Obsidian**：可以粘贴链接直接保存单篇，也可以先取得公众号历史目录或合集目录，再勾选保存。文章生成 Markdown 笔记，图片可下载到本地。
 
-当前版本：**0.4.0**。插件独立运行，不需要 AI、wechatDownload、微信读书、MCP 服务，也不需要额外安装 Python、Node.js 或 Docker。
+当前版本：**0.5.0**。插件独立运行，不需要 AI、wechatDownload、微信读书、MCP 服务，也不需要额外安装 Python、Node.js 或 Docker。
 
 ### 主要功能
 
@@ -24,10 +24,12 @@
 
 | 项目 | 要求 |
 | --- | --- |
-| 系统 | Windows 桌面版；不支持 macOS、Linux 和移动端。 |
+| 系统 | Windows 和 macOS 桌面版；不支持 Linux 和移动端。 |
 | Obsidian | 1.8.0 及以上；尚未逐一验证所有版本。 |
-| Windows 微信 | 获取整个公众号历史目录时，需要本人已登录的微信，并在微信内打开目标公众号主页。网页缓存已在微信 4.1.6.14 实测。 |
+| 微信历史目录 | Windows 微信 4.1.6.14 已有实测；Mac 微信 4.x 缓存适配为实验功能，尚未完成真实历史目录验收。两者均需本人已登录并在微信内打开目标公众号主页。 |
 | 网络 | 获取新目录、正文和图片需要联网。公开单篇及合集通常不需要登录微信或读取本机缓存。 |
+
+**Mac 安装与验证范围：** 见 [MACOS.md](MACOS.md)。单篇文章、图片和公开合集使用与 Windows 相同的保存流程；历史目录受 Mac 微信缓存权限与格式影响，不把“未连接”解释为“没有文章”。
 
 ### 安装
 
@@ -64,7 +66,7 @@
 
 #### 保存一个公众号的历史文章
 
-1. 登录 Windows 微信。
+1. 登录电脑微信（Windows；Mac 微信 4.x 为实验支持）。
 2. 点击 Obsidian 左侧绿色归档图标，或右下角的 **微信公众号归档** 按钮。也可以在命令面板搜索插件英文名称。
 3. 粘贴目标公众号任意一篇文章的链接，例如 `https://mp.weixin.qq.com/s/...`。
 4. 点击 **复制微信主页链接**，把链接发到微信文件传输助手，在 **电脑微信内部** 打开并向下翻动几屏。
@@ -108,7 +110,7 @@
 | 提示或现象 | 说明或处理方式 |
 | --- | --- |
 | 未连接到可用的微信页面 | 在电脑微信内重新打开目标公众号主页，翻动几屏后再获取目录。 |
-| 没有找到支持的网页缓存 | 确认使用 Windows 微信桌面版；微信版本变化可能导致缓存布局不兼容。 |
+| 没有找到支持的网页缓存 | 确认使用 Windows 微信或 Mac 微信 4.x；微信版本变化可能导致缓存布局不兼容。 |
 | 微信要求验证或访问频率受限 | 在微信中完成验证，或暂停一段时间再试；已保存的文章会保留。 |
 | 作者隐私设置限制、文章删除或其他访问限制 | 记录不可访问状态，不把空白页面保存为成功笔记。插件不绕过这些限制。 |
 | 图片下载失败 | 保留允许的远程图片链接，并在记录中写明原因；远程图片不能离线显示。 |
@@ -119,7 +121,7 @@
 
 ### 隐私、账号与网络
 
-**账号与费用。** 获取整个公众号的历史目录需要本人已登录的 Windows 微信；公开单篇及合集通常不需要。插件不要求单独注册账号、API 密钥、订阅或付费服务。
+**账号与费用。** 获取整个公众号的历史目录需要本人已登录的电脑微信；公开单篇及合集通常不需要。插件不要求单独注册账号、API 密钥、订阅或付费服务。
 
 **网络请求。** 只在使用者主动识别公众号、获取目录或保存文章时联网，使用 HTTPS：
 
@@ -137,6 +139,15 @@
 %APPDATA%\Tencent\WeChat\XPlugin\Plugins\XWeb
 %APPDATA%\Tencent\WeChat\Cache
 ```
+
+Mac 微信 4.x 的实验适配仅检查：
+
+```text
+~/Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/radium/web
+~/Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/radium/cache
+```
+
+Mac 读取 Chromium Simple Cache v5 的 URL key，不扫描响应正文；不兼容的格式和权限不足会提示并停止。
 
 插件不会修改上述目录；跳过聊天数据库、登录数据库、独立 Cookie 数据库和聊天附件目录。会话参数只在内存中使用，不写入设置、笔记或进度文件。粘贴链接在保存设置前会去除会话及追踪参数，旧配置在启动时也会清理。
 
@@ -157,7 +168,7 @@ npm run check
 
 构建产物位于 `dist/wechat-history-archive/`；运行所需第三方库已打包到 `main.js`，最终用户不需要开发环境。测试使用虚构会话和本地样例，不连接实际微信账号。构建会将 CSS 解析依赖中的动态错误类型查找替换为静态映射，保留依赖许可，并在上游代码变化时停止构建。
 
-发布标签必须与 `manifest.json` 的版本完全一致，例如 `0.4.0`，不加 `v` 前缀。社区安装要求 Release 单独附上 `main.js`、`manifest.json` 和 `styles.css`。
+发布标签必须与 `manifest.json` 的版本完全一致，例如 `0.5.0`，不加 `v` 前缀。社区安装要求 Release 单独附上 `main.js`、`manifest.json` 和 `styles.css`。
 
 采用 [MIT 许可证](LICENSE)。项目及第三方许可全文包含在 `main.js` 的注释中；手动安装包还附带 `LICENSE` 和 `THIRD-PARTY-NOTICES.txt`。更新记录见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -167,9 +178,9 @@ npm run check
 
 ## English
 
-Save individual or selected WeChat Official Account (微信公众号) articles as Markdown notes with local images in **Obsidian on Windows**. Save one article directly, or fetch an account's currently accessible history or a native WeChat album and choose which articles to save.
+Save individual or selected WeChat Official Account (微信公众号) articles as Markdown notes with local images in **Obsidian on Windows or macOS**. Save one article directly, or fetch an account's currently accessible history or a native WeChat album and choose which articles to save.
 
-Version: **0.4.0**. The plugin runs inside Obsidian. End users do not need Python, Node.js, Docker, AI, an MCP server, wechatDownload, or WeChat Read.
+Version: **0.5.0**. The plugin runs inside Obsidian. End users do not need Python, Node.js, Docker, AI, an MCP server, wechatDownload, or WeChat Read.
 
 ### Features
 
@@ -184,8 +195,8 @@ Version: **0.4.0**. The plugin runs inside Obsidian. End users do not need Pytho
 
 ### Requirements
 
-- Windows desktop Obsidian. The manifest specifies version 1.8.0 or later; not every version has been tested. Mobile, macOS, and Linux are not supported.
-- A logged-in Windows WeChat client for full-account history. The web-cache layout has been tested with WeChat **4.1.6.14**.
+- Windows or macOS desktop Obsidian. The manifest specifies version 1.8.0 or later; not every version has been tested. Mobile and Linux are not supported.
+- A logged-in desktop WeChat client for full-account history. Windows WeChat **4.1.6.14** has prior validation. Mac WeChat 4.x history is experimental; live history enumeration is not yet verified.
 - Internet access for new directories, articles, and images. Saved notes, local images, and local directories can be read offline.
 
 ### Installation
@@ -219,7 +230,7 @@ Single saves have their own `单篇归档记录.json` and `单篇归档索引.md
 
 #### Archive account history
 
-1. Sign in to your own Windows WeChat account.
+1. Sign in to your own desktop WeChat account (Mac WeChat 4.x history is experimental).
 2. Click the green archive icon in Obsidian's left ribbon or the **微信公众号归档** status-bar button. You can also search for **WeChat Official Account Archive** in the command palette.
 3. Paste a public article URL from the target account, such as an `https://mp.weixin.qq.com/s/...` URL.
 4. Click **复制微信主页链接** (copy account homepage). Send that link to WeChat's File Transfer Assistant, open it **inside desktop WeChat**, and scroll down a few screens.
@@ -244,7 +255,7 @@ The default vault-relative folder is `公众号归档`. Each account has a subfo
 
 #### Accounts and payments
 
-Full-account history requires the user's own logged-in Windows WeChat client. Public individual articles and albums usually do not. There is no separate plugin account, API key, subscription, or payment. Verification requested by WeChat must be completed in WeChat.
+Full-account history requires the user's own logged-in desktop WeChat client. Public individual articles and albums usually do not. There is no separate plugin account, API key, subscription, or payment. Verification requested by WeChat must be completed in WeChat.
 
 #### Network requests
 
@@ -266,6 +277,15 @@ Full-account discovery uses Node filesystem APIs to **read** existing WeChat web
 %APPDATA%\Tencent\WeChat\XPlugin\Plugins\XWeb
 %APPDATA%\Tencent\WeChat\Cache
 ```
+
+Experimental Mac WeChat 4.x discovery only checks:
+
+```text
+~/Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/radium/web
+~/Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/radium/cache
+```
+
+On Mac, only Chromium Simple Cache v5 URL keys are read, not response bodies. Unsupported formats and permission failures stop history discovery with an explanation. See [MACOS.md](MACOS.md) for validation limits.
 
 This reuses the session of an account page the user has already opened. The plugin does not modify these directories. It skips chat databases, login databases, standalone cookie databases, and chat attachment folders. Single-article saving and public-album discovery do not scan these caches.
 
@@ -300,7 +320,7 @@ npm run check
 
 Build output: `dist/wechat-history-archive/`. Runtime libraries are bundled into `main.js`; users need no development runtime. Tests use synthetic sessions and local fixtures, not real WeChat accounts.
 
-Release tags must exactly match `manifest.json`, such as `0.4.0`, without a `v` prefix. Attach `main.js`, `manifest.json`, and `styles.css` individually for community installation. The ZIP is also supplied for manual installation.
+Release tags must exactly match `manifest.json`, such as `0.5.0`, without a `v` prefix. Attach `main.js`, `manifest.json`, and `styles.css` individually for community installation. The ZIP is also supplied for manual installation.
 
 ### License and support
 

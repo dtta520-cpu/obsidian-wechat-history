@@ -7,7 +7,7 @@ import { parseHTML } from 'linkedom';
 const require = createRequire(import.meta.url);
 
 // A real DOM plus a small Obsidian API adapter; no WeChat or user files are used.
-export async function pluginHarness({ settings = {}, initialFiles = new Map() } = {}) {
+export async function pluginHarness({ settings = {}, initialFiles = new Map(), platform = 'win32' } = {}) {
   const { document, HTMLElement } = parseHTML('<html><body></body></html>');
   const proto = HTMLElement.prototype;
   proto.addClass = function (name) { this.classList.add(name); };
@@ -55,7 +55,7 @@ export async function pluginHarness({ settings = {}, initialFiles = new Map() } 
     }
   }
   const api = { Plugin, ItemView, Setting, PluginSettingTab: class {}, Notice: class { constructor(message) { notices.push(message); } },
-    normalizePath: value => value.replace(/\\/g, '/'), Platform: { isWin: true },
+    normalizePath: value => value.replace(/\\/g, '/'), Platform: { isWin: platform === 'win32', isMacOS: platform === 'darwin', isDesktop: platform !== 'mobile' },
     addIcon: (id, svg) => icons.set(id, svg), setIcon: (element, id) => { assert(icons.has(id)); element.setAttribute('data-icon', id); },
   };
   const module = { exports: {} };

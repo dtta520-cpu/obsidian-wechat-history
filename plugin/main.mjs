@@ -40,7 +40,9 @@ export default class WechatArchivePlugin extends Plugin {
     this.lastIndex = this.settings.lastIndex || '';
     this.running = false; this.stopping = false; this.logs = [];
     this.catalog = null; this.selected = new Set(); this.savedIds = new Set();
-    this.status = '准备就绪。粘贴文章链接可直接保存单篇；获取公众号历史目录需要先登录电脑微信。'; this.completed = 0; this.total = 0;
+    this.status = Platform.isMacOS
+      ? '准备就绪。可保存单篇文章和公开合集；Mac 公众号历史目录适配为实验功能，需要可读取的微信 4.x 网页缓存。'
+      : '准备就绪。粘贴文章链接可直接保存单篇；获取公众号历史目录需要先登录电脑微信。'; this.completed = 0; this.total = 0;
     this.lastSingleFile = '';
     addIcon(ICON, ICON_SVG);
     this.registerView(VIEW, leaf => new ArchiveView(leaf, this));
@@ -218,7 +220,11 @@ export default class WechatArchivePlugin extends Plugin {
   friendlyError(error) {
     const messages = {
       AUTH_REQUIRED: '未连接到可用的微信页面。请在电脑微信内重新打开目标公众号主页，再开始归档。',
-      CACHE_ROOT_MISSING: '没有找到支持的微信网页缓存。当前版本支持 Windows 微信桌面版。',
+      CACHE_ROOT_MISSING: Platform.isMacOS
+        ? '没有找到支持的 Mac 微信 4.x 网页缓存。请在微信内打开目标公众号主页后重试；单篇文章和公开合集仍可直接保存。'
+        : '没有找到支持的微信网页缓存。请在 Windows 微信内打开目标公众号主页后重试。',
+      CACHE_ACCESS_DENIED: '系统未允许 Obsidian 读取微信网页缓存，历史目录已停止。请检查系统权限；单篇文章和公开合集无需这项权限。',
+      CACHE_FORMAT_UNSUPPORTED: '微信网页缓存格式暂不兼容，历史目录已停止。仍可保存单篇文章和公开合集。',
       RATE_LIMITED: '微信暂时限制了请求，已停止采集。已保存的文章会保留，请稍后再试。',
       NETWORK_ERROR: '连接微信失败。请检查网络后再试，已保存的文章会保留。',
       VERIFICATION_REQUIRED: '微信要求完成验证。请先在微信中正常打开文章，完成验证后再试。',
@@ -228,7 +234,7 @@ export default class WechatArchivePlugin extends Plugin {
   }
   async saveSingleArticle() {
     if (this.running) return;
-    if (!Platform.isWin) { new Notice('当前插件仅支持 Windows 桌面版。'); return; }
+    if (!Platform.isWin && !Platform.isMacOS) { new Notice('当前插件支持 Windows 和 macOS 桌面版。'); return; }
     this.running = true; this.stopping = false; this.logs = []; this.completed = 0; this.total = 1; this.lastSingleFile = '';
     const downloadImages = this.settings.downloadImages;
     let catalog; let article;
@@ -289,9 +295,14 @@ export default class WechatArchivePlugin extends Plugin {
   async readHistory(account, http, onPage) {
     const roots = await discoverCaches();
     if (!roots.length) throw new ProbeError('CACHE_ROOT_MISSING', '没有找到微信网页缓存。');
-    const inspected = await inspectTargetCache({ roots, biz: account.biz, authorId: account.authorId });
+    const inspected = Platform.isMacOS ? { candidates: [] }
+      : await inspectTargetCache({ roots, biz: account.biz, authorId: account.authorId });
     this.checkStop();
-    const raw = await scanCaches({ biz: account.biz, roots });
+    const raw = await scanCaches({ biz: account.biz, roots, simpleKeysOnly: Platform.isMacOS });
+    if (Platform.isMacOS && !raw.candidates.length && (raw.stats.unreadableFiles || raw.stats.unreadableDirectories)) throw new ProbeError('CACHE_ACCESS_DENIED', '无法读取微信网页缓存。');
+    if (Platform.isMacOS && !raw.candidates.length && raw.stats.filesRead && raw.stats.unsupportedEntries === raw.stats.filesRead) {
+      throw new ProbeError('CACHE_FORMAT_UNSUPPORTED', '微信网页缓存格式暂不兼容。');
+    }
     const merged = new Map(raw.candidates.map(candidate => [candidate.identity, candidate]));
     for (const candidate of inspected.candidates) merged.set(candidate.identity, candidate);
     const candidates = [...merged.values()].sort((a, b) => Number(Boolean(b.cachedPage)) - Number(Boolean(a.cachedPage)));
@@ -313,7 +324,7 @@ export default class WechatArchivePlugin extends Plugin {
   }
   async fetchCatalog() {
     if (this.running) return;
-    if (!Platform.isWin) { new Notice('当前原型仅验证 Windows 微信缓存。'); return; }
+    if (!Platform.isWin && !Platform.isMacOS) { new Notice('当前插件支持 Windows 和 macOS 桌面版。'); return; }
     this.running = true; this.stopping = false; this.logs = []; this.completed = 0; this.total = 0;
     this.clearCatalog();
     let catalog;

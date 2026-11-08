@@ -1,6 +1,6 @@
 {
   "name": "obsidian-wechat-history",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -21,7 +21,7 @@
     "linkedom": "^0.18.14",
     "turndown": "^7.2.4"
   },
-  "description": "Windows Obsidian plugin for archiving available WeChat public-account history and images.",
+  "description": "Obsidian plugin for archiving WeChat public-account articles on Windows and macOS.",
   "repository": {
     "type": "git",
     "url": "https://github.com/dtta520-cpu/obsidian-wechat-history.git"

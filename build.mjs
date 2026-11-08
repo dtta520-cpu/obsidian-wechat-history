@@ -42,4 +42,5 @@ await fs.writeFile(`${out}/THIRD-PARTY-NOTICES.txt`, noticeText);
 await fs.appendFile(`${out}/main.js`, '\n' + noticeText.split('\n').map(line => `// ${line}`).join('\n') + '\n');
 await fs.copyFile('README.md', `${out}/README.md`);
 await fs.copyFile('README.zh-CN.md', `${out}/README.zh-CN.md`);
+await fs.copyFile('MACOS.md', `${out}/MACOS.md`);
 console.log(`Built ${out}`);
