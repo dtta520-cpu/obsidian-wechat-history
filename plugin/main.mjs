@@ -39,11 +39,14 @@ export default class WechatArchivePlugin extends Plugin {
     if (stored.articleUrl && stored.articleUrl !== this.settings.articleUrl) await this.saveSettings();
     this.lastIndex = this.settings.lastIndex || '';
     this.running = false; this.stopping = false; this.logs = [];
+    this.fetchingCatalog = false; this.unloading = false; this.saveAfterFetch = null;
+    this.checkpointWrites = Promise.resolve(); this.catalogArticleIds = new Set();
     this.catalog = null; this.selected = new Set(); this.savedIds = new Set();
     this.status = Platform.isMacOS
       ? '准备就绪。可保存单篇文章和公开合集；Mac 公众号历史目录适配为实验功能，需要可读取的微信 4.x 网页缓存。'
       : '准备就绪。粘贴文章链接可直接保存单篇；获取公众号历史目录需要先登录电脑微信。'; this.completed = 0; this.total = 0;
     this.lastSingleFile = '';
+    this.historyConnection = null;
     addIcon(ICON, ICON_SVG);
     this.registerView(VIEW, leaf => new ArchiveView(leaf, this));
     const ribbon = this.addRibbonIcon(ICON, '打开微信公众号归档', () => this.open());
@@ -63,7 +66,7 @@ export default class WechatArchivePlugin extends Plugin {
       if (!this.stopping && !this.running && !this.catalog) return this.restoreCatalog();
     });
   }
-  onunload() { this.stopping = true; }
+  onunload() { this.unloading = true; this.stopping = true; this.historyConnection = null; this.saveAfterFetch = null; }
   async open() {
     const existing = this.app.workspace.getLeavesOfType(VIEW)[0];
     const leaf = existing || this.app.workspace.getLeaf(true);
@@ -77,7 +80,12 @@ export default class WechatArchivePlugin extends Plugin {
     this.refreshViews();
   }
   checkStop() { if (this.stopping) throw new ProbeError('CANCELLED', '任务已停止。已保存的文章会保留，可继续保存剩余勾选文章。'); }
-  async saveSettings() { await this.saveData(settingsForStorage(this.settings)); }
+  async saveSettings() {
+    if (this.historyConnection && !this.connectionMatchesSettings()) {
+      this.historyConnection = null; this.refreshViews();
+    }
+    await this.saveData(settingsForStorage(this.settings));
+  }
   async ensureFolder(folder) {
     let current = '';
     for (const part of folder.split('/')) {
@@ -133,7 +141,22 @@ export default class WechatArchivePlugin extends Plugin {
     }
   }
   clearCatalog() {
-    this.catalog = null; this.selected.clear(); this.savedIds.clear(); this.refreshViews();
+    this.catalog = null; this.selected.clear(); this.savedIds.clear(); this.catalogArticleIds.clear(); this.refreshViews();
+  }
+  canSelectArticles() { return !this.running || (this.fetchingCatalog && !this.stopping); }
+  async selectionChanged() {
+    if (!this.canSelectArticles() || !this.catalog) return;
+    const catalog = this.catalog;
+    catalog.job.selection = { ids: [...this.selected] };
+    this.refreshViews();
+    try { await this.checkpoint(catalog); }
+    catch { this.update('勾选已保留在当前面板，但记录写入失败，请检查笔记库是否可写。'); }
+  }
+  stopTask() {
+    this.saveAfterFetch = null; this.stopping = true; this.historyConnection = null;
+    this.update(this.fetchingCatalog
+      ? '正在停止拉取；当前请求结束后保留已取得的目录和勾选，可直接保存文章。'
+      : '正在停止，当前请求结束后将保留进度。');
   }
   catalogMatchesSettings() {
     if (!this.catalog) return false;
@@ -143,10 +166,13 @@ export default class WechatArchivePlugin extends Plugin {
     } catch { return false; }
   }
   async setCatalog(job, base, manifest, restoreSelection = false) {
+    const sameJob = this.catalog?.job === job;
+    const knownIds = sameJob ? this.catalogArticleIds : new Set();
     this.catalog = { job, base, manifest, root: base.slice(0, base.lastIndexOf('/')) };
-    this.savedIds = new Set();
+    if (!sameJob) this.savedIds = new Set();
     const results = new Map(job.results.map(result => [result.id, result]));
     for (const article of job.articles) {
+      if (knownIds.has(article.id)) continue;
       const filename = await this.findExistingArticle(base, article, false);
       if (!filename) continue;
       this.savedIds.add(article.id);
@@ -154,9 +180,11 @@ export default class WechatArchivePlugin extends Plugin {
       else results.set(article.id, { ...results.get(article.id), file: filename });
     }
     const articleIds = new Set(job.articles.map(article => article.id));
+    this.catalogArticleIds = articleIds;
     job.results = [...results.values()].map(result => articleIds.has(result.id) && ['saved', 'existing'].includes(result.status) && !this.savedIds.has(result.id)
       ? { ...result, status: 'missing' } : result);
-    this.selected = new Set(restoreSelection ? (job.selection?.ids || []).filter(id => articleIds.has(id) && !this.savedIds.has(id)) : []);
+    this.selected = new Set(sameJob ? [...this.selected].filter(id => articleIds.has(id))
+      : restoreSelection ? (job.selection?.ids || []).filter(id => articleIds.has(id) && !this.savedIds.has(id)) : []);
   }
   async restoreCatalog() {
     const manifest = this.settings.lastCatalog || this.lastIndex.replace(/公众号归档索引\.md$/, '归档记录.json');
@@ -166,10 +194,12 @@ export default class WechatArchivePlugin extends Plugin {
       const existing = this.app.vault.getAbstractFileByPath(manifest);
       if (!existing) return;
       const job = JSON.parse(await this.app.vault.read(existing));
-      if (!job.endpointExhausted || job.seedArticleFound === false || !Array.isArray(job.articles) || !Array.isArray(job.results)) return;
+      if (!Array.isArray(job.articles) || !Array.isArray(job.results) || (!job.endpointExhausted && !job.articles.length)) return;
+      if (job.seedArticleFound === false) job.endpointExhausted = false;
+      if (!job.endpointExhausted) job.directoryStatus = job.directoryStatus === 'INCOMPLETE' ? 'INCOMPLETE' : 'PAUSED';
       await this.setCatalog(job, base, manifest, true);
       if (!this.catalogMatchesSettings()) { this.clearCatalog(); return; }
-      this.status = `已载入「${this.catalogLabel(job)}」的本地目录，共 ${job.articles.length} 篇。请勾选需要保存的文章。`;
+      this.status = `已载入「${this.catalogLabel(job)}」的${job.endpointExhausted ? '本地目录' : '部分目录（尚未拉完）'}，共 ${job.articles.length} 篇。可勾选保存${job.endpointExhausted ? '。' : '，或重新拉取目录。'}`;
       this.refreshViews();
     } catch { this.clearCatalog(); }
   }
@@ -179,9 +209,15 @@ export default class WechatArchivePlugin extends Plugin {
     if (result?.code === 'ARTICLE_PRIVATE') return '访问受限';
     return result?.status === 'failed' ? '保存失败，可重试' : '未保存';
   }
-  async checkpoint(catalog) {
-    catalog.job.updatedAt = new Date().toISOString();
-    await this.writeText(catalog.manifest, JSON.stringify(catalog.job, null, 2));
+  checkpoint(catalog) {
+    // Selection edits may arrive while a page is being saved. Serialize writes
+    // so an older write cannot replace a newer catalog or selection snapshot.
+    const write = async () => {
+      catalog.job.updatedAt = new Date().toISOString();
+      await this.writeText(catalog.manifest, JSON.stringify(catalog.job, null, 2));
+    };
+    this.checkpointWrites = this.checkpointWrites.catch(() => {}).then(write);
+    return this.checkpointWrites;
   }
   catalogLabel(job) { return job.scope?.type === 'album' ? `${job.account.nickname} / ${job.scope.title}` : job.account.nickname; }
   async readJob(file) {
@@ -201,7 +237,38 @@ export default class WechatArchivePlugin extends Plugin {
     if (scope?.type !== 'single') this.settings.lastCatalog = catalog.manifest;
     await this.saveSettings();
   }
+  connectionMatchesSettings(connection = this.historyConnection) {
+    if (!connection) return false;
+    try {
+      return catalogSource(this.settings.articleUrl).source === connection.source
+        && folderSetting(this.settings.outputFolder) === connection.root;
+    } catch { return false; }
+  }
+  async retryHistoryConnection(automatic = false) {
+    const connection = this.historyConnection;
+    if (this.running || this.stopping || !connection) return;
+    if (!this.connectionMatchesSettings(connection)) {
+      this.historyConnection = null; this.refreshViews(); return;
+    }
+    // One automatic retry belongs to the user's directory request. Do not poll
+    // caches or retry indefinitely whenever the application receives focus.
+    if (automatic && (!connection.autoRetry || Date.now() > connection.expiresAt)) {
+      if (connection.autoRetry) {
+        connection.autoRetry = false;
+        this.update('自动重试等待已结束。打开微信主页后，可点击“重新检测连接”。');
+      }
+      return;
+    }
+    connection.autoRetry = false;
+    await this.fetchCatalog({ retryConnection: connection, automatic });
+  }
+  cancelHistoryConnection() {
+    if (this.running) return;
+    this.historyConnection = null;
+    this.update('已取消等待微信连接。需要时可再次获取文章目录。');
+  }
   async homepageLink() {
+    if (this.running) return;
     try {
       const target = catalogSource(this.settings.articleUrl);
       if (target.type === 'album') {
@@ -210,11 +277,14 @@ export default class WechatArchivePlugin extends Plugin {
         return;
       }
       const source = target.source;
-      this.update('正在识别公众号…');
-      const http = this.createHttp();
-      const account = parseArticle((await http.get(source)).body, source);
+      const connection = this.connectionMatchesSettings() ? this.historyConnection : null;
+      let account = connection?.account;
+      if (!account) {
+        this.update('正在识别公众号…');
+        account = parseArticle((await this.createHttp().get(source)).body, source);
+      }
       await navigator.clipboard.writeText(historyHome(account.biz));
-      this.update(`已复制「${account.nickname}」的主页链接。请发到微信文件传输助手并在电脑微信内打开，再开始归档。`);
+      this.update(`已复制「${account.nickname}」的备用主页链接。请在电脑微信内打开。${connection?.autoRetry ? '返回 Obsidian 后会自动重试一次。' : '打开后点击“重新检测连接”或“获取文章目录”。'}`);
     } catch (error) { this.update(this.friendlyError(error)); }
   }
   friendlyError(error) {
@@ -235,6 +305,7 @@ export default class WechatArchivePlugin extends Plugin {
   async saveSingleArticle() {
     if (this.running) return;
     if (!Platform.isWin && !Platform.isMacOS) { new Notice('当前插件支持 Windows 和 macOS 桌面版。'); return; }
+    this.historyConnection = null;
     this.running = true; this.stopping = false; this.logs = []; this.completed = 0; this.total = 1; this.lastSingleFile = '';
     const downloadImages = this.settings.downloadImages;
     let catalog; let article;
@@ -322,12 +393,18 @@ export default class WechatArchivePlugin extends Plugin {
       fetchPage: async offset => { this.checkStop(); return provider.page(account.biz, fields, offset); }, onPage,
     });
   }
-  async fetchCatalog() {
+  async fetchCatalog({ retryConnection = null, automatic = false } = {}) {
     if (this.running) return;
     if (!Platform.isWin && !Platform.isMacOS) { new Notice('当前插件支持 Windows 和 macOS 桌面版。'); return; }
+    if (retryConnection && !this.connectionMatchesSettings(retryConnection)) return;
+    const previous = this.catalogMatchesSettings() ? {
+      catalog: this.catalog, selected: new Set(this.selected), savedIds: new Set(this.savedIds), articleIds: new Set(this.catalogArticleIds),
+    } : null;
+    this.historyConnection = null;
+    this.fetchingCatalog = true; this.saveAfterFetch = null;
     this.running = true; this.stopping = false; this.logs = []; this.completed = 0; this.total = 0;
     this.clearCatalog();
-    let catalog;
+    let catalog; let canSaveAfterFetch = false;
     try {
       const target = catalogSource(this.settings.articleUrl);
       const source = target.source;
@@ -341,7 +418,7 @@ export default class WechatArchivePlugin extends Plugin {
         firstPage = await albumProvider.page(target);
         account = firstPage.account; scope = firstPage.scope;
       } else {
-        account = parseArticle((await http.get(source)).body, source);
+        account = retryConnection?.account || parseArticle((await http.get(source)).body, source);
         scope = { type: 'history' };
       }
       this.checkStop();
@@ -353,21 +430,27 @@ export default class WechatArchivePlugin extends Plugin {
       if ([prior, accountJob].some(record => record?.account?.biz && record.account.biz !== account.biz)) throw new ProbeError('ACCOUNT_MISMATCH', '保存目录属于另一个同名公众号，请更换目录。');
       const results = new Map([...(accountJob?.results || []), ...(prior?.results || [])].map(result => [result.id, result]));
       const job = { version: 1, account, source, scope, status: 'CONNECTING', startedAt: new Date().toISOString(), articles: [], pages: [],
-        results: [...results.values()], fullHistoryVerified: false, credentialsPersisted: false };
+        results: [...results.values()], endpointExhausted: false, directoryStatus: 'FETCHING', fullHistoryVerified: false, credentialsPersisted: false };
       catalog = { job, base, manifest, root };
-      await this.checkpoint(catalog);
-      this.update(scope.type === 'album' ? `正在读取「${scope.title}」的合集目录…` : `正在连接「${account.nickname}」的微信页面…`);
+      // Keep an existing directory intact until a new page has actually arrived.
+      this.update(scope.type === 'album' ? `正在读取「${scope.title}」的合集目录…` : `正在尝试连接「${account.nickname}」的微信页面；已有连接可直接使用…`);
       const onPage = async state => {
-          this.checkStop(); job.articles = state.articles; job.pages = state.pages; job.unresolved = state.unresolved;
+          // A response already in flight when Stop was clicked is still useful.
+          // Publish and checkpoint it before honoring cancellation.
+          job.articles = state.articles; job.pages = [...state.pages]; job.unresolved = state.unresolved;
           job.status = 'ENUMERATING'; this.total = state.articles.length;
-          await this.checkpoint(catalog); this.update(`已找到 ${this.total} 篇文章，正在继续读取${scope.type === 'album' ? '合集' : '历史'}目录…`);
+          await this.setCatalog(job, base, manifest);
+          job.selection = { ids: [...this.selected] };
+          this.update(this.stopping ? `正在停止拉取，已保留 ${this.total} 篇文章目录。`
+            : `已取得 ${this.total} 篇文章，正在继续读取${scope.type === 'album' ? '合集' : '历史'}目录；可边拉取边勾选。`);
+          await this.checkpoint(catalog); await this.writeIndex(catalog);
+          this.checkStop();
       };
       const history = scope.type === 'album'
         ? await enumerateAlbum({ provider: albumProvider, target, firstPage, onPage, checkStop: () => this.checkStop() })
         : await this.readHistory(account, http, onPage);
       this.checkStop();
       job.articles = history.articles; job.pages = history.pages; job.unresolved = history.unresolved;
-      job.endpointExhausted = true; job.coverage = history.coverage; job.endReason = history.endReason;
       if (scope.type === 'album') {
         job.scope.countVerified = history.countVerified;
         const ids = new Set(history.articles.map(article => article.id));
@@ -376,29 +459,74 @@ export default class WechatArchivePlugin extends Plugin {
         job.seedArticleFound = history.articles.some(article => article.title === account.title || article.url === source);
         if (!job.seedArticleFound) throw new ProbeError('KNOWN_ARTICLE_MISSING', '历史目录遗漏了你提供的文章，已停止，不能认定目录完整。');
       }
+      job.endpointExhausted = true; job.directoryStatus = 'COMPLETE'; job.coverage = history.coverage; job.endReason = history.endReason;
       job.status = 'AWAITING_SELECTION';
       await this.setCatalog(job, base, manifest);
+      job.selection = { ids: [...this.selected] };
       await this.checkpoint(catalog);
       await this.writeIndex(catalog);
+      canSaveAfterFetch = true;
       this.total = history.articles.length;
       this.update(`目录已取得：「${this.catalogLabel(job)}」共 ${this.total} 篇。请勾选文章，再点击“保存所选文章”。`);
     } catch (error) {
-      this.update(this.friendlyError(error));
-      this.clearCatalog();
-      if (catalog) {
+      const needsConnection = !this.stopping && catalog?.job.scope.type === 'history'
+        && !catalog.job.pages.length && ['AUTH_REQUIRED', 'CACHE_ROOT_MISSING'].includes(error.code);
+      if (needsConnection) {
+        this.historyConnection = {
+          account: catalog.job.account, source: catalog.job.source, root: catalog.root,
+          autoRetry: !automatic, expiresAt: Date.now() + 10 * 60 * 1000,
+        };
+        this.update(`尚未连接「${catalog.job.account.nickname}」。请按下方提示在电脑微信中打开该公众号主页。${automatic ? '自动重试仍未连接，可使用备用主页链接后重新检测。' : '返回 Obsidian 后会自动重试一次。'}`);
+      } else this.update(this.friendlyError(error));
+      if (catalog && !needsConnection) {
         catalog.job.status = error.code === 'CANCELLED' ? 'PAUSED' : 'INCOMPLETE'; catalog.job.error = { code: error.code || 'LOCAL_ERROR' };
-        try { await this.checkpoint(catalog); } catch { this.update('目录获取已停止，但目录记录写入失败。请检查笔记库是否可写后重试。'); }
+        catalog.job.endpointExhausted = false; catalog.job.directoryStatus = catalog.job.status;
+        catalog.job.directoryError = catalog.job.error;
+        delete catalog.job.coverage; delete catalog.job.endReason;
+        if (catalog.job.scope.type === 'album') catalog.job.scope.countVerified = false;
+        try {
+          if (catalog.job.articles.length) {
+            await this.setCatalog(catalog.job, catalog.base, catalog.manifest);
+            catalog.job.selection = { ids: [...this.selected] };
+            await this.checkpoint(catalog); await this.writeIndex(catalog);
+            canSaveAfterFetch = error.code === 'CANCELLED';
+            this.update(`${error.code === 'CANCELLED' ? '已停止拉取' : this.friendlyError(error)} 已保留 ${catalog.job.articles.length} 篇部分目录，可勾选保存；目录尚未拉完。`);
+          } else if (!previous) await this.checkpoint(catalog);
+        } catch { this.update('目录已保留在当前面板，但记录写入失败。请检查笔记库是否可写。'); }
       }
-    } finally { this.running = false; this.refreshViews(); }
+      if (!catalog?.job.articles.length) {
+        if (previous) {
+          this.catalog = previous.catalog; this.selected = previous.selected;
+          this.savedIds = previous.savedIds; this.catalogArticleIds = previous.articleIds;
+        } else this.clearCatalog();
+      }
+    } finally {
+      const queued = this.saveAfterFetch; this.saveAfterFetch = null;
+      this.running = false; this.fetchingCatalog = false;
+      if (queued && canSaveAfterFetch && !this.unloading && this.catalog?.job === queued.job && this.catalogMatchesSettings()) {
+        this.selected = new Set(queued.ids);
+        await this.saveSelected();
+      } else this.refreshViews();
+    }
   }
   async saveSelected() {
-    if (this.running) return;
+    if (this.running) {
+      if (this.fetchingCatalog && !this.stopping && this.catalogMatchesSettings()) {
+        const ids = this.catalog.job.articles.filter(article => this.selected.has(article.id)).map(article => article.id);
+        if (!ids.length) { new Notice('请先勾选要保存的文章。'); return; }
+        this.saveAfterFetch = { job: this.catalog.job, ids };
+        this.stopping = true;
+        this.update(`正在停止拉取，当前请求结束后保存已勾选的 ${ids.length} 篇文章。`);
+      }
+      return;
+    }
     if (!this.catalogMatchesSettings()) { new Notice('文章链接或保存文件夹已改变，请重新获取目录。'); return; }
     const catalog = this.catalog;
     const { job, base } = catalog;
     // Freeze the requested IDs: filtering or UI changes cannot broaden this download.
     const articles = job.articles.filter(article => this.selected.has(article.id));
     if (!articles.length) { new Notice('请先勾选要保存的文章。'); return; }
+    this.historyConnection = null;
     this.running = true; this.stopping = false; this.completed = 0; this.total = articles.length;
     const downloadImages = this.settings.downloadImages;
     job.status = 'DOWNLOADING_SELECTION'; delete job.error;
@@ -465,8 +593,10 @@ class ArchiveView extends ItemView {
   getIcon() { return ICON; }
   async onOpen() {
     const content = this.contentEl; content.empty(); content.addClass('wechat-history-view');
+    const ownerWindow = content.ownerDocument.defaultView;
+    if (ownerWindow) this.registerDomEvent(ownerWindow, 'focus', () => this.plugin.retryHistoryConnection(true));
     content.createEl('h2', { text: '微信公众号归档' });
-    content.createEl('p', { text: '单篇：粘贴文章链接，点击“保存单篇文章”。批量：先获取公众号或合集目录，再勾选保存。', cls: 'wechat-intro' });
+    content.createEl('p', { text: '单篇：粘贴文章链接，点击“保存单篇文章”。批量：获取公众号或合集目录时即可勾选，随时停止并保存所选。', cls: 'wechat-intro' });
     new Setting(content).setName('公众号文章或合集链接').addText(text => {
       this.urlInput = text;
       text.setPlaceholder('https://mp.weixin.qq.com/…').setValue(this.plugin.settings.articleUrl)
@@ -486,17 +616,27 @@ class ArchiveView extends ItemView {
     this.openSingleButton.onclick = async () => {
       if (this.plugin.lastSingleFile) await this.app.workspace.openLinkText(this.plugin.lastSingleFile, '', true);
     };
-    this.copy = actions.createEl('button', { text: '复制微信主页链接' }); this.copy.onclick = () => this.plugin.homepageLink();
     this.startButton = actions.createEl('button', { text: '1. 获取文章目录' }); this.startButton.onclick = () => this.plugin.fetchCatalog();
-    this.stopButton = actions.createEl('button', { text: '停止' }); this.stopButton.onclick = () => { this.plugin.stopping = true; this.plugin.update('正在停止，当前请求结束后将保留进度。'); };
+    this.stopButton = actions.createEl('button', { text: '停止' }); this.stopButton.onclick = () => this.plugin.stopTask();
     const open = actions.createEl('button', { text: '打开归档索引' }); open.onclick = async () => {
       if (this.plugin.lastIndex) await this.app.workspace.openLinkText(this.plugin.lastIndex, '', true);
       else new Notice('取得目录后可打开索引。');
     };
     this.statusEl = content.createDiv({ cls: 'wechat-status' });
+    this.connectionHelp = content.createDiv({ cls: 'wechat-connection-help', attr: { 'aria-label': '连接电脑微信' } });
+    this.connectionTitle = this.connectionHelp.createEl('h3');
+    this.connectionHelp.createEl('p', { text: '在已登录的电脑微信中找到这个公众号，进入可向下翻动的历史文章页；也可尝试从文章顶部的公众号名称进入。若仍无法连接，使用下方备用主页链接在微信内打开。' });
+    this.connectionHint = this.connectionHelp.createEl('p', { cls: 'wechat-caveat' });
+    const connectionActions = this.connectionHelp.createDiv({ cls: 'wechat-actions' });
+    this.retryConnection = connectionActions.createEl('button', { text: '重新检测连接', cls: 'mod-cta' });
+    this.retryConnection.onclick = () => this.plugin.retryHistoryConnection();
+    this.copy = connectionActions.createEl('button', { text: '复制备用主页链接' }); this.copy.onclick = () => this.plugin.homepageLink();
+    this.cancelConnection = connectionActions.createEl('button', { text: '取消等待' });
+    this.cancelConnection.onclick = () => this.plugin.cancelHistoryConnection();
     this.progress = content.createEl('progress');
     this.catalogEl = content.createDiv({ cls: 'wechat-catalog' });
     this.catalogTitle = this.catalogEl.createEl('h3', { text: '2. 勾选文章' });
+    this.catalogProgress = this.catalogEl.createDiv({ cls: 'wechat-catalog-progress', attr: { 'aria-live': 'polite' } });
     this.catalogEl.createEl('p', { cls: 'wechat-caveat', text: '默认不勾选。搜索不会取消已有勾选；已保存的笔记会保留。' });
     this.search = this.catalogEl.createEl('input', { attr: { type: 'search', placeholder: '按标题搜索文章…', 'aria-label': '按标题搜索文章' } });
     this.search.oninput = () => this.refresh();
@@ -506,13 +646,13 @@ class ArchiveView extends ItemView {
     this.selectUnsaved = selectionActions.createEl('button', { text: '勾选当前未保存' });
     this.selectUnsaved.onclick = () => this.selectVisible(true);
     this.clearSelection = selectionActions.createEl('button', { text: '清空全部勾选' });
-    this.clearSelection.onclick = () => { if (!this.plugin.running) { this.plugin.selected.clear(); this.plugin.refreshViews(); } };
+    this.clearSelection.onclick = () => { if (this.plugin.canSelectArticles()) { this.plugin.selected.clear(); return this.plugin.selectionChanged(); } };
     this.selectionSummary = this.catalogEl.createDiv({ cls: 'wechat-selection-summary', attr: { 'aria-live': 'polite' } });
     this.articleList = this.catalogEl.createDiv({ cls: 'wechat-article-list', attr: { role: 'group', 'aria-label': '可选择的文章目录' } });
     const saveActions = this.catalogEl.createDiv({ cls: 'wechat-actions' });
     this.saveButton = saveActions.createEl('button', { text: '3. 保存所选文章', cls: 'mod-cta' });
     this.saveButton.onclick = () => this.plugin.saveSelected();
-    content.createEl('p', { cls: 'wechat-caveat', text: '单篇文章及公开合集通常不需要读取微信缓存。获取公众号历史目录：先复制主页链接，在电脑微信内打开。遇到验证或访问限制时按提示处理。' });
+    content.createEl('p', { cls: 'wechat-caveat', text: '单篇文章及公开合集通常不需要连接微信。历史目录可直接点击“获取文章目录”，只有连接不可用时才会显示微信操作提示。遇到验证或访问限制时按提示处理。' });
     this.logEl = content.createDiv({ cls: 'wechat-log' }); this.refresh();
   }
   visibleArticles() {
@@ -520,49 +660,70 @@ class ArchiveView extends ItemView {
     return (this.plugin.catalog?.job.articles || []).filter(article => !query || article.title.toLocaleLowerCase().includes(query));
   }
   selectVisible(unsavedOnly) {
-    if (this.plugin.running) return;
+    if (!this.plugin.canSelectArticles()) return;
     for (const article of this.visibleArticles()) {
       if (!unsavedOnly || !this.plugin.savedIds.has(article.id)) this.plugin.selected.add(article.id);
     }
-    this.plugin.refreshViews();
+    return this.plugin.selectionChanged();
   }
   refreshCatalog() {
     const job = this.plugin.catalog?.job;
     this.catalogEl.hidden = !job;
     if (!job) { this.renderedArticles = null; return; }
     this.catalogTitle.setText(`2. 勾选文章 · ${this.plugin.catalogLabel(job)}`);
+    this.catalogProgress.setText(this.plugin.fetchingCatalog
+      ? this.plugin.stopping ? `正在停止 · 已取得 ${job.articles.length} 篇，当前请求结束后保留目录和勾选。`
+        : `正在拉取 · 已取得 ${job.articles.length} 篇，目录尚未完整。可先勾选，随时停止拉取并保存。`
+      : job.endpointExhausted ? `目录已遍历 · ${job.articles.length} 篇（仅当前可访问的内容）。`
+        : `部分目录 · 已取得 ${job.articles.length} 篇，尚未拉完。可勾选保存，或重新拉取目录。`);
+    const selectable = this.plugin.canSelectArticles();
     const visible = this.visibleArticles();
     if (this.renderedArticles !== job.articles || this.renderedQuery !== this.search.value) {
       this.renderedArticles = job.articles; this.renderedQuery = this.search.value;
-      this.articleList.empty(); this.rowControls = [];
-      if (!visible.length) this.articleList.createEl('p', { text: '没有匹配的文章，请调整搜索词。', cls: 'wechat-caveat' });
-      for (const article of visible) {
-        const row = this.articleList.createEl('label', { cls: 'wechat-article-row' });
-        const checkbox = row.createEl('input', { attr: { type: 'checkbox', 'aria-label': `选择文章：${article.title}` } });
-        checkbox.onchange = () => {
-          if (this.plugin.running) return;
-          if (checkbox.checked) this.plugin.selected.add(article.id); else this.plugin.selected.delete(article.id);
-          this.plugin.refreshViews();
-        };
-        const body = row.createDiv({ cls: 'wechat-article-details' });
-        body.createSpan({ text: article.title, cls: 'wechat-article-title' });
-        const meta = body.createDiv({ cls: 'wechat-article-meta' });
-        meta.createSpan({ text: localDate(article.publishedAt) });
-        const state = meta.createSpan();
-        this.rowControls.push({ article, checkbox, state });
+      if (this.renderedJob !== job) {
+        this.renderedJob = job; this.rowsById = new Map(); this.articleList.empty();
       }
+      const scrollTop = this.articleList.scrollTop;
+      const visibleIds = new Set(visible.map(article => article.id));
+      for (const child of [...this.articleList.children]) if (!visibleIds.has(child.dataset.articleId)) child.remove();
+      this.rowControls = [];
+      for (const article of visible) {
+        let control = this.rowsById.get(article.id);
+        if (!control) {
+          const row = this.articleList.createEl('label', { cls: 'wechat-article-row', attr: { 'data-article-id': article.id } });
+          const checkbox = row.createEl('input', { attr: { type: 'checkbox' } });
+          checkbox.onchange = () => {
+            if (!this.plugin.canSelectArticles()) return;
+            if (checkbox.checked) this.plugin.selected.add(article.id); else this.plugin.selected.delete(article.id);
+            return this.plugin.selectionChanged();
+          };
+          const body = row.createDiv({ cls: 'wechat-article-details' });
+          const title = body.createSpan({ cls: 'wechat-article-title' });
+          const meta = body.createDiv({ cls: 'wechat-article-meta' });
+          const date = meta.createSpan(); const state = meta.createSpan();
+          control = { row, checkbox, title, date, state }; this.rowsById.set(article.id, control);
+        }
+        control.article = article;
+        control.title.setText(article.title); control.date.setText(localDate(article.publishedAt));
+        control.checkbox.setAttribute('aria-label', `选择文章：${article.title}`);
+        const position = this.articleList.children[this.rowControls.length];
+        if (position !== control.row) this.articleList.insertBefore(control.row, position || null);
+        this.rowControls.push(control);
+      }
+      if (!visible.length) this.articleList.createEl('p', { text: '没有匹配的文章，请调整搜索词。', cls: 'wechat-caveat' });
+      this.articleList.scrollTop = scrollTop;
     }
     for (const { article, checkbox, state } of this.rowControls) {
-      checkbox.checked = this.plugin.selected.has(article.id); checkbox.disabled = this.plugin.running;
+      checkbox.checked = this.plugin.selected.has(article.id); checkbox.disabled = !selectable;
       state.setText(this.plugin.articleState(article));
     }
     this.selectionSummary.setText(`目录共 ${job.articles.length} 篇 · 当前显示 ${visible.length} 篇 · 已勾选 ${this.plugin.selected.size} 篇`);
-    this.saveButton.setText(`3. 保存所选文章（${this.plugin.selected.size}）`);
-    this.saveButton.disabled = this.plugin.running || !this.plugin.selected.size || !this.plugin.catalogMatchesSettings();
-    this.selectAll.disabled = this.plugin.running || !visible.length;
-    this.selectUnsaved.disabled = this.plugin.running || !visible.some(article => !this.plugin.savedIds.has(article.id));
-    this.clearSelection.disabled = this.plugin.running || !this.plugin.selected.size;
-    this.search.disabled = this.plugin.running;
+    this.saveButton.setText(`${this.plugin.fetchingCatalog ? '停止拉取并保存所选' : '3. 保存所选文章'}（${this.plugin.selected.size}）`);
+    this.saveButton.disabled = !selectable || !this.plugin.selected.size || !this.plugin.catalogMatchesSettings();
+    this.selectAll.disabled = !selectable || !visible.length;
+    this.selectUnsaved.disabled = !selectable || !visible.some(article => !this.plugin.savedIds.has(article.id));
+    this.clearSelection.disabled = !selectable || !this.plugin.selected.size;
+    this.search.disabled = !selectable;
   }
   refresh() {
     if (!this.statusEl) return;
@@ -574,7 +735,16 @@ class ArchiveView extends ItemView {
     this.singleButton.disabled = this.plugin.running || album;
     this.openSingleButton.hidden = !this.plugin.lastSingleFile;
     this.openSingleButton.disabled = this.plugin.running;
-    this.copy.setText(album ? '复制合集链接' : '复制微信主页链接');
+    const connection = this.plugin.historyConnection;
+    this.connectionHelp.hidden = !connection;
+    if (connection) {
+      this.connectionTitle.setText(`连接「${connection.account.nickname || connection.account.biz}」`);
+      this.connectionHint.setText(connection.autoRetry
+        ? '打开后向下翻动几屏，再返回 Obsidian；10 分钟内返回会自动重试一次。也可点击“重新检测连接”。'
+        : '打开主页后点击“重新检测连接”。本次自动重试已结束，不会反复扫描或发送请求。');
+    }
+    this.retryConnection.disabled = this.plugin.running;
+    this.cancelConnection.disabled = this.plugin.running;
     this.urlInput.setDisabled(this.plugin.running);
     this.progress.max = this.plugin.total || 1; this.progress.value = this.plugin.completed;
     this.logEl.empty(); for (const line of this.plugin.logs) this.logEl.createEl('p', { text: line });

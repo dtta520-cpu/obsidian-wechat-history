@@ -23,7 +23,7 @@ export async function pluginHarness({ settings = {}, initialFiles = new Map(), p
   proto.createDiv = function (options) { return this.createEl('div', options); };
   proto.createSpan = function (options) { return this.createEl('span', options); };
   const registered = []; const icons = new Map(); const domEvents = []; const leaves = []; const notices = [];
-  const files = new Map(initialFiles); const writes = []; const requested = [];
+  const files = new Map(initialFiles); const writes = []; const requested = []; const clipboardWrites = [];
   let savedSettings = structuredClone(settings); let createdLeaves = 0; let revealed = 0; let layoutReady;
   class Plugin {
     async loadData() { return structuredClone(savedSettings); }
@@ -37,6 +37,7 @@ export async function pluginHarness({ settings = {}, initialFiles = new Map(), p
   }
   class ItemView {
     constructor(leaf) { this.app = leaf.app; this.contentEl = document.createElement('div'); document.body.appendChild(this.contentEl); }
+    registerDomEvent(element, type, callback) { domEvents.push({ element, type, callback }); element.addEventListener(type, callback); }
   }
   class Setting {
     constructor(container) { this.element = container.createDiv({ cls: 'setting-item' }); }
@@ -62,7 +63,8 @@ export async function pluginHarness({ settings = {}, initialFiles = new Map(), p
   const context = { module, exports: module.exports, require: name => {
     requested.push(name); if (name === 'obsidian') return api;
     assert(name.startsWith('node:'), `Unexpected external dependency: ${name}`); return require(name);
-  }, Buffer, URL, URLSearchParams, AbortSignal, TextDecoder, setTimeout, clearTimeout, setInterval, clearInterval, process, console };
+  }, Buffer, URL, URLSearchParams, AbortSignal, TextDecoder, setTimeout, clearTimeout, setInterval, clearInterval, process, console,
+    navigator: { clipboard: { writeText: async value => { clipboardWrites.push(value); } } } };
   vm.runInNewContext(await fs.readFile(new URL('../dist/wechat-history-archive/main.js', import.meta.url), 'utf8'), context);
   const vault = {
     getAbstractFileByPath: path => files.has(path) ? { path, ...(files.get(path) === null ? {
@@ -90,7 +92,7 @@ export async function pluginHarness({ settings = {}, initialFiles = new Map(), p
   plugin.readHistory = async () => { throw new Error('Test did not supply history'); };
   await plugin.onload();
   await layoutReady?.();
-  return { plugin, app, vault, files, writes, registered, domEvents, notices, requested, document, leaves,
+  return { plugin, app, vault, files, writes, registered, domEvents, notices, requested, document, leaves, clipboardWrites,
     get settings() { return savedSettings; }, get createdLeaves() { return createdLeaves; }, get revealed() { return revealed; },
   };
 }

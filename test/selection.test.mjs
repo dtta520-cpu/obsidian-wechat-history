@@ -38,7 +38,7 @@ test('fetching a directory stops before saving any article and restores without 
   assert.equal(restored.writes.length, 0);
 });
 
-test('an incomplete directory is checkpointed but cannot be selected as a complete catalog', async () => {
+test('an incomplete directory remains selectable and restores with an explicit partial label', async () => {
   const harness = await pluginHarness({ settings }); const { plugin } = harness;
   plugin.createHttp = () => ({ get: async () => ({ body: '<h1 id="activity-name">目录入口</h1><a id="js_name">测试公众号</a>' }) });
   plugin.readHistory = async (found, http, onPage) => {
@@ -46,12 +46,14 @@ test('an incomplete directory is checkpointed but cannot be selected as a comple
     const error = new Error('Interrupted'); error.code = 'NETWORK_ERROR'; throw error;
   };
   await plugin.fetchCatalog();
-  assert.equal(plugin.catalog, null); assert.equal(plugin.running, false);
+  assert.equal(plugin.catalog.job.articles.length, 1); assert.equal(plugin.running, false);
   const partial = JSON.parse(harness.files.get(manifest));
   assert.equal(partial.status, 'INCOMPLETE'); assert.equal(partial.articles.length, 1);
   assert(!partial.endpointExhausted);
   const restored = await pluginHarness({ settings, initialFiles: harness.files });
-  assert.equal(restored.plugin.catalog, null);
+  assert.equal(restored.plugin.catalog.job.articles.length, 1);
+  assert.equal(restored.plugin.catalog.job.endpointExhausted, false);
+  assert.match(restored.plugin.status, /部分目录/);
 });
 
 test('only checked IDs are fetched, including same-title entries, and unselected records remain intact', async () => {

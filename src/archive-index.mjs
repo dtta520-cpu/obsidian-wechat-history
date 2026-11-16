@@ -14,6 +14,11 @@ export function archiveIndex(job) {
   return [
     `# ${job.account.nickname} · ${album ? escape(album.title) : single ? '单篇归档' : '公众号归档'}`, '',
     ...(album ? [`[打开原合集](${album.url})`, '', '以下仅包含本合集的文章，保留合集中的排列顺序。', ''] : []),
+    ...(!single ? [job.endpointExhausted
+      ? '目录状态：接口已遍历至末页；不代表包含公众号曾发布的全部文章。'
+      : job.directoryStatus === 'FETCHING'
+        ? '> 正在拉取目录：以下为已取得的部分条目，目录尚未完整，可在面板中勾选。'
+        : '> 部分目录：拉取已停止或中断，尚未完整。以下文章仍可勾选保存；保存正文不会补全目录。', ''] : []),
     `${single ? '单篇保存记录' : album ? '合集目录' : '历史目录'}共 **${articles.length} 条**，已保存文字 **${saved} 条**，未保存 **${pending} 条**，作者隐私限制 **${privateCount} 条**，其他待补齐 **${failed} 条**。`, '',
     single ? '这里只记录使用者逐篇提交的文章，不代表公众号完整历史目录。' : '正文按使用者勾选保存；未保存的目录条目仅保留原文入口，不代表下载失败。', '',
     `发布时间范围（北京时间）：${localDate(dates[0])} 至 ${localDate(dates.at(-1))}。`, '',

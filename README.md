@@ -4,16 +4,17 @@
 
 ## 中文说明
 
-把微信公众号文章保存到 **Windows / macOS 桌面版 Obsidian**：可以粘贴链接直接保存单篇，也可以先取得公众号历史目录或合集目录，再勾选保存。文章生成 Markdown 笔记，图片可下载到本地。
+把微信公众号文章保存到 **Windows / macOS 桌面版 Obsidian**：可以粘贴链接直接保存单篇，也可以在拉取公众号历史目录或合集目录时勾选，随时停止并保存所选。文章生成 Markdown 笔记，图片可下载到本地。
 
-当前版本：**0.5.0**。插件独立运行，不需要 AI、wechatDownload、微信读书、MCP 服务，也不需要额外安装 Python、Node.js 或 Docker。
+当前版本：**0.5.2**。插件独立运行，不需要 AI、wechatDownload、微信读书、MCP 服务，也不需要额外安装 Python、Node.js 或 Docker。
 
 ### 主要功能
 
 - **单篇直接保存**：粘贴文章链接即可保存，无需先获取目录，不扫描本机微信缓存。
-- **公众号历史目录**：从任意一篇文章识别公众号，分页取得当前可访问的历史目录。
+- **公众号历史目录**：从任意一篇文章识别公众号，先尝试已有微信连接，连接不可用时再引导打开主页，分页取得当前可访问的历史目录。
 - **单个合集目录**：支持微信原生合集 / 专辑链接，保留合集顺序，并在接口提供总数时核对篇数。
-- **自行选择文章**：取得目录后默认不勾选；支持标题搜索、全选当前结果和勾选未保存文章。
+- **边拉取边选择**：每页到达后立即显示，新文章默认不勾选；支持标题搜索、全选当前结果和勾选未保存文章。
+- **保留部分目录**：停止或中断后仍可勾选和保存已取得的文章；重启插件可恢复部分目录及未完成的选择。
 - **正文与图片归档**：保存图文、图片短文和音频帖的文字介绍；图片可下载到笔记库，保留次序、比例和显示宽度。
 - **保留已有笔记**：同来源笔记不会被覆盖，保留使用者的修改；记录进度、不可访问文章和失败原因。
 - **本地阅读与索引**：每篇笔记保留原文链接，提供归档索引；已保存的正文、本地图片和目录可离线阅读。
@@ -26,7 +27,7 @@
 | --- | --- |
 | 系统 | Windows 和 macOS 桌面版；不支持 Linux 和移动端。 |
 | Obsidian | 1.8.0 及以上；尚未逐一验证所有版本。 |
-| 微信历史目录 | Windows 微信 4.1.6.14 已有实测；Mac 微信 4.x 缓存适配为实验功能，尚未完成真实历史目录验收。两者均需本人已登录并在微信内打开目标公众号主页。 |
+| 微信历史目录 | Windows 微信 4.1.6.14 已有实测；Mac 微信 4.x 缓存适配为实验功能，尚未完成真实历史目录验收。两者均需本人已登录的微信和可用网页缓存；连接不可用时再按提示打开主页。 |
 | 网络 | 获取新目录、正文和图片需要联网。公开单篇及合集通常不需要登录微信或读取本机缓存。 |
 
 **Mac 安装与验证范围：** 见 [MACOS.md](MACOS.md)。单篇文章、图片和公开合集使用与 Windows 相同的保存流程；历史目录受 Mac 微信缓存权限与格式影响，不把“未连接”解释为“没有文章”。
@@ -69,15 +70,22 @@
 1. 登录电脑微信（Windows；Mac 微信 4.x 为实验支持）。
 2. 点击 Obsidian 左侧绿色归档图标，或右下角的 **微信公众号归档** 按钮。也可以在命令面板搜索插件英文名称。
 3. 粘贴目标公众号任意一篇文章的链接，例如 `https://mp.weixin.qq.com/s/...`。
-4. 点击 **复制微信主页链接**，把链接发到微信文件传输助手，在 **电脑微信内部** 打开并向下翻动几屏。
-5. 回到 Obsidian，点击 **获取文章目录**。这一步只保存目录和索引，不下载文章正文。
-6. 勾选需要保存的文章，点击 **保存所选文章**。
+4. 直接点击 **获取文章目录**。插件先尝试已有微信连接；连接有效时直接读取目录，无需预先复制主页链接。
+5. 只有提示未连接时，才在电脑微信内找到该公众号并打开可向下翻动的历史文章页，也可尝试从文章顶部的公众号名称进入。向下翻动几屏后返回 Obsidian，插件会自动重试一次。
+6. 若仍未连接，点击 **复制备用主页链接**，把链接发到微信文件传输助手，在 **电脑微信内部** 打开，再点击 **重新检测连接**。
+7. 目录会逐页显示，拉取过程中即可搜索和勾选，无需等全部拉完。可以点击 **停止拉取并保存所选**，或等待拉取结束后点击 **保存所选文章**。目录获取本身不下载正文。
 
-目录支持标题搜索、**全选当前结果**、**勾选当前未保存** 和 **清空全部勾选**。搜索不会取消之前的勾选，保存按钮显示全部勾选数量。
+自动重试仅属于你刚刚发起的目录请求，有效期为 10 分钟，不轮询缓存。可点击 **取消等待**；更换链接、保存文件夹或发起单篇保存也会取消等待。验证、频率限制、系统权限错误及已开始分页后的错误不会自动重试。等待连接不会覆盖已有目录或索引。
+
+本次优化不等于自动打开微信内置浏览器。首次使用或连接过期时，仍可能需要在微信内打开主页；普通公众号入口是否产生兼容缓存取决于微信版本，备用主页链接仍保留。
+
+目录支持标题搜索、**全选当前结果**、**勾选当前未保存** 和 **清空全部勾选**。搜索和后续分页不会取消之前的勾选；新到达的文章不会自动选中，保存按钮显示全部勾选数量。
+
+点击 **停止拉取并保存所选** 后，会在当前请求结束、保留已取得目录后开始保存；仅处理点击时选定的文章，不继续翻页。再次点击 **停止** 可取消这次等待中的保存。遇到验证、频率限制或其他拉取错误时，也会取消等待中的保存并提示原因。
 
 #### 只保存某个合集的文章
 
-在同一输入框粘贴微信原生合集链接（路径为 `/mp/appmsgalbum`，包含 `__biz` 和 `album_id`），点击 **获取文章目录**，然后勾选保存。
+在同一输入框粘贴微信原生合集链接（路径为 `/mp/appmsgalbum`，包含 `__biz` 和 `album_id`），点击 **获取文章目录**，即可边拉取边勾选；停止后同样保留已取得的部分合集目录。
 
 公开合集通常无需先打开微信主页或扫描本机缓存。插件会自动翻页；中途失败、重复页或篇数不符不会被标记为完整目录。微信要求验证或拒绝访问时，插件会提示并停止。
 
@@ -85,9 +93,10 @@
 
 #### 中断、继续与刷新
 
-- 点击 **停止** 后，插件在当前请求结束后停止，保留已经保存的文章；未完成的勾选可以继续保存。
-- 再次打开面板会恢复本地目录；重启插件也会恢复上次保存任务中未完成的选择。
-- 点击 **刷新文章目录** 检查新文章。更换来源链接或保存文件夹后，需要重新获取目录。
+- 拉取目录时点击 **停止**，会在当前请求结束后保留已取得的目录和勾选，可直接保存所选文章；目录及索引会标注“部分目录”，不会被误认为已经拉完。保存正文不会补全目录。
+- 保存文章时点击 **停止**，保留已保存的笔记，未完成的勾选可以继续保存。
+- 每页目录和勾选都会写入本地记录。重新打开面板或重启插件，可恢复上次取得的目录（包括部分目录）和未完成的选择，无需联网。
+- 点击 **刷新文章目录** 从头重新获取当前目录、检查新文章；目前不从上次停止的分页位置续拉。刷新尚未取得新页面就失败或停止时，保留旧目录。更换来源链接或保存文件夹后，需要重新获取目录。
 - 已有同来源笔记及使用者修改会保留；未勾选文章不会被下载或删除。
 
 ### 文件保存在哪里
@@ -153,6 +162,8 @@ Mac 读取 Chromium Simple Cache v5 的 URL key，不扫描响应正文；不兼
 
 **本地保存与同步。** 文章、图片、公共来源链接、索引和进度通过 Obsidian 接口写入所选的笔记库文件夹，插件设置通过 Obsidian 配置接口保存。若笔记库启用了同步，这些文件也会按原有设置同步。
 
+**连接重试。** 使用者主动获取历史目录但未连接时，返回 Obsidian 可触发一次缓存检查和目录重试；等待超过 10 分钟、取消或更换来源后不再自动重试。连接提示只保存在内存中，不自动打开微信、发送消息或操作鼠标键盘。
+
 **剪贴板与其他服务。** 只有点击复制按钮时，插件才把生成的公开链接写入剪贴板，不读取剪贴板。没有广告、遥测、分析服务、AI 调用、第三方上传或后台下载，也不会自行更新依赖库。
 
 本项目独立开发，不是微信或 Obsidian 官方产品。仓库和发布包不包含使用者的微信缓存、会话参数、归档文章或笔记库配置。
@@ -168,7 +179,7 @@ npm run check
 
 构建产物位于 `dist/wechat-history-archive/`；运行所需第三方库已打包到 `main.js`，最终用户不需要开发环境。测试使用虚构会话和本地样例，不连接实际微信账号。构建会将 CSS 解析依赖中的动态错误类型查找替换为静态映射，保留依赖许可，并在上游代码变化时停止构建。
 
-发布标签必须与 `manifest.json` 的版本完全一致，例如 `0.5.0`，不加 `v` 前缀。社区安装要求 Release 单独附上 `main.js`、`manifest.json` 和 `styles.css`。
+发布标签必须与 `manifest.json` 的版本完全一致，例如 `0.5.2`，不加 `v` 前缀。社区安装要求 Release 单独附上 `main.js`、`manifest.json` 和 `styles.css`。
 
 采用 [MIT 许可证](LICENSE)。项目及第三方许可全文包含在 `main.js` 的注释中；手动安装包还附带 `LICENSE` 和 `THIRD-PARTY-NOTICES.txt`。更新记录见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -180,13 +191,14 @@ npm run check
 
 Save individual or selected WeChat Official Account (微信公众号) articles as Markdown notes with local images in **Obsidian on Windows or macOS**. Save one article directly, or fetch an account's currently accessible history or a native WeChat album and choose which articles to save.
 
-Version: **0.5.0**. The plugin runs inside Obsidian. End users do not need Python, Node.js, Docker, AI, an MCP server, wechatDownload, or WeChat Read.
+Version: **0.5.2**. The plugin runs inside Obsidian. End users do not need Python, Node.js, Docker, AI, an MCP server, wechatDownload, or WeChat Read.
 
 ### Features
 
 - Save one article directly without fetching a directory or scanning WeChat caches.
 - Fetch available account history or one native album, with pagination and completeness checks.
-- Choose articles after fetching the directory. Nothing is selected by default.
+- Choose articles while pages arrive. New entries remain unchecked and earlier selections are retained.
+- Keep partial catalogs and unfinished selections after stopping, errors, or restarting the plugin.
 - Search by title, select visible results, or select unsaved articles.
 - Save text and local images, preserving image order, proportions, and display widths.
 - Improve Markdown spacing, emphasis, tables, and decorative image sizing.
@@ -233,17 +245,24 @@ Single saves have their own `单篇归档记录.json` and `单篇归档索引.md
 1. Sign in to your own desktop WeChat account (Mac WeChat 4.x history is experimental).
 2. Click the green archive icon in Obsidian's left ribbon or the **微信公众号归档** status-bar button. You can also search for **WeChat Official Account Archive** in the command palette.
 3. Paste a public article URL from the target account, such as an `https://mp.weixin.qq.com/s/...` URL.
-4. Click **复制微信主页链接** (copy account homepage). Send that link to WeChat's File Transfer Assistant, open it **inside desktop WeChat**, and scroll down a few screens.
-5. Back in Obsidian, click **获取文章目录** (fetch directory). This saves the directory and index without downloading article bodies.
-6. Check the articles you want, then click **保存所选文章** (save selected articles).
+4. Click **获取文章目录** (fetch directory) directly. The plugin first tries existing WeChat context; a working session needs no preliminary homepage copy.
+5. Only if connection guidance appears, open that account's scrollable history page inside desktop WeChat. The account name at the top of an article is another possible entry point. Scroll down, then return to Obsidian for one automatic retry.
+6. If it still cannot connect, click **复制备用主页链接** (copy backup homepage), send it to WeChat's File Transfer Assistant, open it inside desktop WeChat, then click **重新检测连接** (retry connection).
+7. Pages appear as they arrive, and you can search and select immediately. Click **停止拉取并保存所选** (stop fetching and save selected), or wait for the directory to finish and click **保存所选文章** (save selected). Fetching the directory does not save article bodies.
 
-Use title search, **全选当前结果** (select visible results), **勾选当前未保存** (select visible unsaved articles), or **清空全部勾选** (clear selections). Filtering does not clear earlier selections. Existing notes from the same source are preserved.
+The automatic retry expires after 10 minutes and never polls caches. **取消等待** (cancel waiting), changing the source or output folder, or starting a single save cancels the pending retry. Verification, rate limits, system permission errors, and failures after pagination begins are not retried automatically. Waiting for context preserves the existing directory and index.
 
-Click **停止** (stop) to retain completed work and stop after the current request. Unfinished selections can be resumed. Reopening the panel restores the local directory without a network request. Use **刷新文章目录** (refresh directory) to check for new articles.
+This does not automatically open WeChat's internal browser. A first visit or expired context may still require opening the homepage in WeChat. Whether normal account navigation produces compatible cache data depends on the WeChat version; the backup link remains available.
+
+Use title search, **全选当前结果** (select visible results), **勾选当前未保存** (select visible unsaved articles), or **清空全部勾选** (clear selections). Filtering and later pages do not clear earlier selections; new entries are not selected automatically. Existing notes from the same source are preserved.
+
+**停止拉取并保存所选** stops pagination after the current request, retains its entries, then saves only the articles selected at the click. Pressing **停止** again cancels the queued save. Verification, rate limits, or other fetch errors also cancel it and report the problem.
+
+Click **停止** (stop) to stop after the current request and retain fetched entries, selections, and saved notes. Partial catalogs remain selectable and are explicitly labeled incomplete in the panel and index, even after selected article bodies are saved. Each page and selection change is recorded locally; reopening the panel or restarting the plugin restores the latest catalog and unfinished selections without a network request. **刷新文章目录** (refresh directory) starts a fresh enumeration; it does not resume the old page cursor. If a refresh stops or fails before receiving a new page, the previous catalog is preserved.
 
 #### Archive one album
 
-Paste a native WeChat album URL containing `/mp/appmsgalbum`, `__biz`, and `album_id`, fetch its directory, and select articles to save. Public albums normally work without a WeChat login or cache scan. If WeChat requests verification or denies access, the plugin stops and reports the condition.
+Paste a native WeChat album URL containing `/mp/appmsgalbum`, `__biz`, and `album_id`, fetch its directory, and select articles while pages arrive. Stopping retains a selectable partial album catalog. Public albums normally work without a WeChat login or cache scan. If WeChat requests verification or denies access, the plugin stops and reports the condition.
 
 Pagination preserves album order and checks the reported count when available. Incomplete, repeated, or inconsistent pages are not marked complete. Each album has its own index and progress record. Custom menus, third-party topic pages, and unpublished backend groups are not supported.
 
@@ -291,9 +310,13 @@ This reuses the session of an account page the user has already opened. The plug
 
 Session values remain in memory and are not written to settings, notes, or progress records. Pasted URLs are stripped of session and tracking parameters before saving; old settings are cleaned on load. Articles, images, public links, and progress are written inside the selected vault folder through Obsidian APIs. Vault sync services synchronize those files according to the user's existing configuration.
 
+#### Connection retry
+
+After a user-requested directory fetch cannot connect, returning to Obsidian can trigger one cache check and catalog retry within 10 minutes. Cancellation or changed inputs invalidate the pending retry. This state is kept in memory only. The plugin does not automatically open WeChat, send messages, or control the mouse or keyboard.
+
 #### Clipboard and other services
 
-Copy-homepage and copy-album buttons **write** the generated public URL to the clipboard only when clicked. The plugin does not read the clipboard. There are no ads, analytics, telemetry, AI calls, third-party uploads, background downloads, or self-updating dependencies.
+The backup-homepage button **writes** the generated public URL to the clipboard only when clicked. The plugin does not read the clipboard. There are no ads, analytics, telemetry, AI calls, third-party uploads, background downloads, or self-updating dependencies.
 
 The bundled CSS parser resolves error constructors through a static lookup. The build replaces its upstream dynamic-evaluation fallback and fails if that dependency code changes unexpectedly. Dependency copyright and license notices remain included.
 
@@ -320,7 +343,7 @@ npm run check
 
 Build output: `dist/wechat-history-archive/`. Runtime libraries are bundled into `main.js`; users need no development runtime. Tests use synthetic sessions and local fixtures, not real WeChat accounts.
 
-Release tags must exactly match `manifest.json`, such as `0.5.0`, without a `v` prefix. Attach `main.js`, `manifest.json`, and `styles.css` individually for community installation. The ZIP is also supplied for manual installation.
+Release tags must exactly match `manifest.json`, such as `0.5.2`, without a `v` prefix. Attach `main.js`, `manifest.json`, and `styles.css` individually for community installation. The ZIP is also supplied for manual installation.
 
 ### License and support
 
